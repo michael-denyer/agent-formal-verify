@@ -13,6 +13,15 @@ prek run --all-files
 
 prek prepares the pinned lint tools in its own cache. The hooks check plugin metadata, skill references, helper tests, shell scripts, Python, Markdown, JSON, YAML and GitHub Actions workflows. CI runs the same checks and also copies the skills into an isolated installation to check that their files match. Keep every skill reference, helper and template within `skills/` so copied installations work.
 
+CI also checks local documentation links and heading anchors with lychee in offline mode and audits workflow security with zizmor. To run these checks locally, install lychee 0.24.2 and zizmor 1.29.0, then run:
+
+```shell
+lychee --offline --no-progress --include-fragments \
+  --exclude-path .git --exclude-path .agents/skills \
+  --exclude-path node_modules --exclude-path .lake '**/*.md'
+zizmor --offline --persona pedantic --min-severity low .github/workflows/
+```
+
 Test the plugin in Claude Code with `claude --plugin-dir /absolute/path/to/agent-formal-verify`. To test model runners, prepare their tools using [tool setup](skills/formal-verify/references/setup.md). Runner changes should demonstrate a valid model passing and a broken property failing. Verification runners must report missing tools without downloading them; preparation belongs in `setup.sh`.
 
 For skill changes, check a realistic request against the instructions. Confirm that the agent chooses suitable targets, preserves the source behaviour, and reports assumptions and proof gaps. Keep prose direct and remove slogans and unsupported claims.
@@ -29,7 +38,7 @@ Update both plugin manifests, the Claude marketplace entry and `CHANGES.md` toge
 
 Dependabot opens weekly update PRs for GitHub Actions, the pinned lint hooks and prek. Updates wait seven days after release and must pass CI before review; they are not merged automatically.
 
-Update the Bun version and the isolated-installation `skills` CLI pin manually in CI. Lean pins and TLC's version and checksum also need deliberate updates: run a valid model and a failing property with the new tools before changing their pins.
+Update the Bun version, isolated-installation `skills` CLI pin, lychee image tag and digest, and zizmor tool version manually in CI. Lean pins and TLC's version and checksum also need deliberate updates: run a valid model and a failing property with the new tools before changing their pins.
 
 ## License
 

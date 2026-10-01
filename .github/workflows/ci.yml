@@ -37,3 +37,33 @@ jobs:
           persist-credentials: false
       - run: npx --yes skills@1.5.23 add "$PWD/skills" --skill '*' --agent codex --yes --copy
       - run: diff -qr skills .agents/skills
+
+  links:
+    name: Documentation links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check local links and heading anchors
+        run: |
+          docker run --rm --network none -v "$PWD:/repo:ro" -w /repo \
+            lycheeverse/lychee:0.24.2@sha256:e2d19e57cf6ab037026f20b8e449a1f30d9d7f81eef4194763aab2eab20bd28d \
+            --offline --no-progress --include-fragments \
+            --exclude-path .git --exclude-path .agents/skills \
+            --exclude-path node_modules --exclude-path .lake '**/*.md'
+
+  zizmor:
+    name: Workflow security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          version: "1.29.0"
+          advanced-security: false
+          annotations: true
+          persona: pedantic
+          min-severity: low

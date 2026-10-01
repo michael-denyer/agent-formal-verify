@@ -6,6 +6,8 @@ Removed the separate root version file. Validation compares the plugin manifests
 
 Added prek hooks shared with CI, including Python and workflow linting. Dependabot proposes weekly updates for lint tools, prek and GitHub Actions.
 
+CI checks local documentation links and heading anchors offline and audits workflow security with zizmor.
+
 ## 0.1.7 - simplify contribution guidance
 
 Removed the separate reporting document and contact fields from plugin metadata.
