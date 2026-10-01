@@ -10,10 +10,10 @@ This model checks the counters of a bounded queue with ordered output.
 3. Run `#eval badPairs` to find states where a step violates the invariant
    within the chosen bound, and keep the `#guard` that fails the build on one.
 4. Prove the invariant for every size by cases on the step.
-5. List every theorem under `#print axioms` at the end of the file.
 
-Name any unfinished proof that uses `sorry`; `lean-check.sh` fails on it and
-on any theorem that `#print axioms` shows resting on a declared axiom.
+Name any unfinished proof that uses `sorry`. `lean-check.sh` fails on it, on
+any declaration that rests on a declared axiom, and on a `.lean` file that no
+library in the lakefile owns.
 -/
 
 structure State where
@@ -69,7 +69,3 @@ theorem consume_keeps_invariant (w : Nat) (s t : State) (hs : Invariant w s) (h 
     simp only [Invariant] at *
     omega
   · cases h
-
-#print axioms invariant_init
-#print axioms claim_keeps_invariant
-#print axioms consume_keeps_invariant

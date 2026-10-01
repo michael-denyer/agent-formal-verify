@@ -7,7 +7,7 @@
 | `setup` | `/agent-formal-verify:setup` | Prepare the complete shared toolset once |
 | `formal-verify` | `/agent-formal-verify:formal-verify` | Model-check protocols and prove sequential invariants |
 
-In Codex, request the plugin's skill by name. Parallel targets use the host's agent tools and your configured models. Hosts without delegation can process targets sequentially.
+In Codex, type `$` and pick the skill, run `/skills`, or request the skill by name. The plugin ships no Codex prompts or slash commands. Parallel targets use the host's agent tools and your configured models. Hosts without delegation can process targets sequentially.
 
 ## Shared installation
 
@@ -51,6 +51,6 @@ Tool caches survive plugin updates. Run setup again only if a release introduces
 
 The [verification skill](../skills/formal-verify/SKILL.md) directs the agent to select protocols and sequential invariants, transcribe their behaviour, and check their properties. It uses TLC to explore bounded instances, and Lean to evaluate bounded searches and prove properties for every size.
 
-Before reporting a pass, it requires mutations that demonstrate the properties detect relevant bugs. For failures, it requires source locations, reachability checks, a reproduction where practical, and fixes to the code and model together. Each bug gets its own PR with state counts and mutation results.
+Before reporting a pass, it requires mutations that demonstrate the properties detect relevant bugs. The Lean checker audits every declaration for `sorry` and for axioms beyond Lean's three standard ones. For failures, it requires source locations, reachability checks, and a reproduction where practical. The agent changes code, commits and opens pull requests only when you ask for fixes; it then fixes the code and model together, with one PR per bug carrying state counts and mutation results.
 
-A passing model establishes its stated properties under its assumptions. Reports must identify omitted code constraints and unfinished proofs. These models do not check memory ordering below the mutex; keep sanitizer checks. They do not establish correctness of the entire program or guarantee a particular number of discovered bugs.
+A passing model establishes its stated properties under its assumptions. Reports must identify omitted code constraints and unfinished proofs. These models do not check memory ordering below the mutex; keep ThreadSanitizer or race-detector checks. They do not establish correctness of the entire program or guarantee a particular number of discovered bugs.

@@ -36,7 +36,8 @@ For local checkouts and skills-only installs, see [shared installation](docs/ref
 Use formal-verify to check this queue's shutdown protocol and window arithmetic.
 ```
 
-In Claude Code, use `/agent-formal-verify:formal-verify`. In Codex, request the plugin's `formal-verify` skill.
+In Claude Code, use `/agent-formal-verify:formal-verify`. In Codex, type `$formal-verify` or request the plugin's `formal-verify` skill.
+
 ## How it works
 
 ![Source code enters target selection for thread protocols, arithmetic and state transitions. The agent builds TLA+ and Lean models, finds counter-examples, reproduces bugs, fixes code and models, and tests mutations. Fixes and models are checked in CI. Run setup once, then verify each repository.](assets/formal-verify-overview-v2.png)

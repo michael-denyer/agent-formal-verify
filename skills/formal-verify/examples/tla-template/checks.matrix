@@ -1,7 +1,7 @@
-# Matrix file for tlc-matrix.sh. Copy it beside your specs and edit. Paths are
-# relative to this file. A `spec` line resets the `check` lines; each `run` is
-# one TLC run with the CONSTANTS after the bar. Each spec must name its
-# top-level formula Spec.
+# Matrix file for tlc-matrix.sh. Copy it beside your spec as <Name>.matrix and
+# edit. Paths are relative to this file. A `spec` line resets the `check`
+# lines; each `run` is one TLC run with the CONSTANTS after the bar. Each spec
+# must name its top-level formula Spec.
 
 spec BoundedQueue.tla
 check INVARIANTS TypeOK InWindow
