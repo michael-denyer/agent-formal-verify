@@ -2,7 +2,7 @@
 
 ## 0.1.11 - Lean checker works from Lean 4.20.0 and ignores leftover modules
 
-`lean-check.sh` takes the modules to audit from `lake query`, so a `.olean` left in the build directory by a deleted source is no longer audited. The audit skips the compiler's auxiliary declarations, which made every model fail on Lean 4.20.0. The checker supports pins from Lean 4.20.0, the first whose Lake builds a module by its source path, and names that minimum when an older pin fails. CI runs the example on Lean 4.20.0 as well as the template's pin.
+`lean-check.sh` takes the modules to audit from `lake query`, so a `.olean` left in the build directory by a deleted source is no longer audited. The audit skips the compiler's auxiliary declarations, which made every model fail on Lean 4.20.0. The checker supports pins from Lean 4.20.0, the first whose Lake builds a module by its source path, and names that minimum when an older pin fails.
 
 ## 0.1.10 - sound Lean audit and clearer agent instructions
 
