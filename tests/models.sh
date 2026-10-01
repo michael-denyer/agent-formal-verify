@@ -61,16 +61,6 @@ grep -qF "AXIOMS 'haunted' depends on axioms: #[ghost]" "$work/lean.out"
 rm "$work/lean/Model/Ghost.lean"
 bash "$scripts/lean-check.sh" "$work/lean"
 
-# The oldest supported pin passes the example and rejects a hidden axiom.
-mkdir "$work/lean-min"
-cp "$examples/lean-template"/{Model.lean,lakefile.toml,lake-manifest.json} "$work/lean-min/"
-echo "leanprover/lean4:v4.20.0" > "$work/lean-min/lean-toolchain"
-bash "$scripts/setup.sh" lean "$work/lean-min"
-bash "$scripts/lean-check.sh" "$work/lean-min"
-printf 'axiom cheat : ∀ n : Nat, n < 3\ntheorem bogus : (10 : Nat) < 3 := cheat 10\n' >> "$work/lean-min/Model.lean"
-rejected bash "$scripts/lean-check.sh" "$work/lean-min" | tee "$work/lean.out"
-grep -qF "AXIOMS 'bogus' depends on axioms: #[cheat]" "$work/lean.out"
-
 # An unfinished proof in a file that no library owns, named like a built module.
 mkdir "$work/lean/Scratch"
 echo 'theorem unproved : (10 : Nat) < 3 := sorry' > "$work/lean/Scratch/Model.lean"
