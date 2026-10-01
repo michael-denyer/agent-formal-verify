@@ -10,7 +10,7 @@ During verification with a global installation, resolve the invocation's target 
 
 ## TLA+ and TLC
 
-Install a JDK, Python 3 and curl through your normal package manager. Setup also needs `sha256sum` or `shasum` to verify the download. On macOS, select a working JDK through `JAVA` if the `java` on PATH is the system stub.
+Install a JDK, Python 3 and curl through your normal package manager. Copy the [TLA+ template](../examples/tla-template/BoundedQueue.tla) and its `checks.matrix` into the project to start a spec. Setup also needs `sha256sum` or `shasum` to verify the download. On macOS, select a working JDK through `JAVA` if the `java` on PATH is the system stub.
 
 ```shell
 bash scripts/setup.sh tla
@@ -19,7 +19,7 @@ bash scripts/tlc-matrix.sh /path/to/models/checks.matrix
 
 Setup downloads TLC v1.7.4 from the TLA+ GitHub release into `~/.cache/tla/`, verifies its pinned SHA256, and publishes the file atomically. Repeat setup reuses a verified download. Parallel setup calls use different temporary files. Set `TLC_CACHE` to choose another cache directory. Set `TLC_JAR` to use an existing JAR; an explicitly supplied JAR is trusted and must already exist.
 
-The matrix runner requires a prepared JAR and a working Java runtime. It checks Python 3 before running, so a failing model can always print its reduced trace. It does not download tools. `TLC_WORKERS` controls the TLC worker count.
+The matrix runner requires a prepared JAR and a working Java runtime. It checks Python 3 before running, so a failing model can always print its reduced trace. It does not download tools. Each run checks the formula its spec names `Spec` and sees only the modules beside that spec. `TLC_WORKERS` controls the TLC worker count.
 
 ## Lean 4
 

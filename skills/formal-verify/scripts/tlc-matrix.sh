@@ -3,11 +3,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Model-checks TLA+ specs with TLC over a matrix of constants read from a
 # matrix file, and prints one PASS or FAIL line per run with its distinct
-# state count. A failing run prints TLC's error and its counter-example
+# state count. A failing run prints TLC's error and its error trace
 # reduced to the variables each step changed (tlc-trace.py).
 #
 # Matrix file, one directive per line (# starts a comment):
-#   spec <path.tla>             the spec for the runs below, relative to the file
+#   spec <path.tla>             the spec for the runs below, relative to the file;
+#                               TLC checks the formula it names Spec
 #   check <cfg line>            an INVARIANTS or PROPERTIES line, kept until the next spec
 #   run <label> | <Name=Value ...>   one TLC run with those CONSTANTS
 #
@@ -42,42 +43,38 @@ spec=""
 checks=""
 
 check_run() {
-  local label=$1 consts=$2
+  local label=$1 consts=$2 name dir pairs c
   [ -n "$spec" ] || { echo "FAIL run '$label' before any spec line"; fail=1; return; }
   case $label in *"$only"*) ;; *) return ;; esac
   run=$((run + 1))
-  local name
   name=$(basename "$spec" .tla)
+  [ -f "$MATRIX_DIR/$spec" ] || { echo "FAIL $name $label: spec $spec not found"; fail=1; return; }
+  # A directory per run, so a run sees only the modules beside its own spec.
+  dir=$(mktemp -d "$OUT/run.XXXXXX")
+  cp "$MATRIX_DIR/$(dirname "$spec")"/*.tla "$dir/"
+  read -ra pairs <<< "$consts"
   {
     echo "CONSTANTS"
-    for c in $consts; do echo "  ${c%%=*} = ${c#*=}"; done
+    # bash 3.2 treats an empty array as unset under set -u.
+    for c in ${pairs[@]+"${pairs[@]}"}; do echo "  ${c%%=*} = ${c#*=}"; done
     echo "SPECIFICATION Spec"
     printf '%s\n' "$checks"
-  } > "$OUT/MC.cfg"
-  cp "$MATRIX_DIR/$spec" "$OUT/"
-  # Modules the spec EXTENDS or INSTANCEs that live beside it.
-  for dep in "$MATRIX_DIR/$(dirname "$spec")"/*.tla; do
-    [ "$(basename "$dep")" = "$name.tla" ] || cp "$dep" "$OUT/" 2>/dev/null
-  done
-  if "$JAVA" -XX:+UseParallelGC -cp "$TLC_JAR" tlc2.TLC -workers "$TLC_WORKERS" -cleanup -metadir "$OUT/states-$run" \
-      -config "$OUT/MC.cfg" "$OUT/$name.tla" > "$OUT/tlc.log" 2>&1 \
-      && grep -q "No error has been found" "$OUT/tlc.log"; then
-    echo "PASS $name $label $(grep -o '[0-9,]* distinct states found' "$OUT/tlc.log" | head -1)"
+  } > "$dir/MC.cfg"
+  if "$JAVA" -XX:+UseParallelGC -cp "$TLC_JAR" tlc2.TLC -workers "$TLC_WORKERS" -cleanup -metadir "$dir/states" \
+      -config "$dir/MC.cfg" "$dir/$name.tla" > "$dir/tlc.log" 2>&1 \
+      && grep -q "No error has been found" "$dir/tlc.log"; then
+    echo "PASS $name $label $(grep -o '[0-9,]* distinct states found' "$dir/tlc.log" | head -1)"
   else
-    echo "FAIL $name $label: $(grep -m1 "^Error:" "$OUT/tlc.log")"
-    grep "^Error:" "$OUT/tlc.log" | sed -n '2,5p'
-    if grep -q "counter-example" "$OUT/tlc.log"; then
-      python3 "$HERE/tlc-trace.py" "$OUT/tlc.log"
-    else
-      grep -v "^\s*$" "$OUT/tlc.log" | tail -40
-    fi
+    echo "FAIL $name $label: $(grep -m1 "^Error:" "$dir/tlc.log")"
+    grep "^Error:" "$dir/tlc.log" | sed -n '2,5p'
+    python3 "$HERE/tlc-trace.py" "$dir/tlc.log" || grep -v '^[[:space:]]*$' "$dir/tlc.log" | tail -40
     fail=1
   fi
 }
 
 while IFS= read -r line || [ -n "$line" ]; do
   line=${line%%#*}
-  [ -n "${line// /}" ] || continue
+  [[ $line =~ [^[:space:]] ]] || continue
   read -r kw rest <<< "$line"
   case $kw in
     spec) spec=$rest; checks="" ;;
@@ -87,5 +84,5 @@ while IFS= read -r line || [ -n "$line" ]; do
   esac
 done < "$matrix"
 
-[ "$run" -gt 0 ] || { echo "FAIL no run matched '$only'"; fail=1; }
+[ "$run" -gt 0 ] || { echo "FAIL no run ${only:+matching '$only' }in $matrix"; fail=1; }
 exit $fail

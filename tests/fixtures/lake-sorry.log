@@ -1,0 +1,4 @@
+⚠ [2/3] Built Model (195ms)
+info: Model.lean:46:0: []
+warning: Model.lean:69:8: declaration uses `sorry`
+Build completed successfully (3 jobs).

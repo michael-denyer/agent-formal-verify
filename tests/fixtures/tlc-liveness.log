@@ -1,0 +1,17 @@
+Error: Temporal properties were violated.
+
+Error: The following behavior constitutes a counter-example:
+
+State 1: <Initial predicate>
+/\ x = 0
+/\ y = 0
+
+State 2: <Step line 6, col 9 to line 8, col 42 of module Two>
+/\ x = 1
+/\ y = 0
+
+State 3: <Step line 6, col 9 to line 8, col 42 of module Two>
+/\ x = 2
+/\ y = 1
+
+Back to state 1: <Wrap line 9, col 9 to line 9, col 33 of module Two>

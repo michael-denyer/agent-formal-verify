@@ -38,6 +38,27 @@ jobs:
       - run: npx --yes skills@1.5.23 add "$PWD/skills" --skill '*' --agent codex --yes --copy
       - run: diff -qr skills .agents/skills
 
+  models:
+    name: Example models
+    runs-on: ubuntu-latest
+    env:
+      ELAN_VERSION: v4.2.4
+      ELAN_SHA256: 42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install elan
+        run: |
+          curl --proto '=https' --tlsv1.2 -LSf -o "$RUNNER_TEMP/elan.tar.gz" \
+            "https://github.com/leanprover/elan/releases/download/$ELAN_VERSION/elan-x86_64-unknown-linux-gnu.tar.gz"
+          echo "$ELAN_SHA256  $RUNNER_TEMP/elan.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/elan-init" -y --default-toolchain none --no-modify-path
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Check the examples and their mutations with TLC and Lean
+        run: bash tests/models.sh
+
   links:
     name: Documentation links
     runs-on: ubuntu-latest

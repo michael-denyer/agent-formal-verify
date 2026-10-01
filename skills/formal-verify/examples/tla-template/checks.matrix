@@ -1,0 +1,18 @@
+# Matrix file for tlc-matrix.sh. Copy it beside your specs and edit. Paths are
+# relative to this file. A `spec` line resets the `check` lines; each `run` is
+# one TLC run with the CONSTANTS after the bar. Each spec must name its
+# top-level formula Spec.
+
+spec BoundedQueue.tla
+check INVARIANTS TypeOK InWindow
+check PROPERTIES AllConsumed
+# The shipped window, the boundary below it, and an empty input.
+run window=1 items=3 | Window=1 Items=3
+run window=4 items=5 | Window=4 Items=5
+run window=4 items=0 | Window=4 Items=0
+
+# Further specs follow the same shape. A set-valued constant has no spaces;
+# model values are bare names.
+#   spec HandOver.tla
+#   check INVARIANTS TypeOK NoDoubleFree NoLeak
+#   run workers=3 failat=all | Workers={w1,w2,w3} FailAt={1,2,3}

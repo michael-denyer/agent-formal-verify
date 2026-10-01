@@ -22,7 +22,7 @@ lychee --offline --no-progress --include-fragments \
 zizmor --offline --persona pedantic --min-severity low .github/workflows/
 ```
 
-Test the plugin in Claude Code with `claude --plugin-dir /absolute/path/to/agent-formal-verify`. To test model runners, prepare their tools using [tool setup](skills/formal-verify/references/setup.md). Runner changes should demonstrate a valid model passing and a broken property failing. Verification runners must report missing tools without downloading them; preparation belongs in `setup.sh`.
+Test the plugin in Claude Code with `claude --plugin-dir /absolute/path/to/agent-formal-verify`. To test model runners, prepare their tools using [tool setup](skills/formal-verify/references/setup.md). Runner changes should demonstrate a valid model passing and a broken property failing: `bash tests/models.sh` runs both checkers on the bundled examples and on copies with one guard weakened, and CI runs it as the `models` job. Verification runners must report missing tools without downloading them; preparation belongs in `setup.sh`.
 
 For skill changes, check a realistic request against the instructions. Confirm that the agent chooses suitable targets, preserves the source behaviour, and reports assumptions and proof gaps. Keep prose direct and remove slogans and unsupported claims.
 
@@ -38,7 +38,7 @@ Update both plugin manifests, the Claude marketplace entry and `CHANGES.md` toge
 
 Dependabot opens weekly update PRs for GitHub Actions, the pinned lint hooks and prek. Updates wait seven days after release and must pass CI before review; they are not merged automatically.
 
-Update the Bun version, isolated-installation `skills` CLI pin, lychee image tag and digest, and zizmor tool version manually in CI. Lean pins and TLC's version and checksum also need deliberate updates: run a valid model and a failing property with the new tools before changing their pins.
+Update the Bun version, isolated-installation `skills` CLI pin, lychee image tag and digest, zizmor tool version, and elan version and checksum manually in CI. Lean pins and TLC's version and checksum also need deliberate updates: run a valid model and a failing property with the new tools before changing their pins.
 
 ## License
 

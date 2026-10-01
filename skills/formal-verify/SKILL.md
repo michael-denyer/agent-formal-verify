@@ -26,9 +26,9 @@ If a system prerequisite such as Java or elan is missing, use the [setup skill](
 
 Use the host runtime's shell and agent tools. Follow the user's model configuration when selecting agents. If delegation is unavailable, model targets sequentially.
 
-[`scripts/tlc-matrix.sh`](scripts/tlc-matrix.sh) runs TLC with a matrix of constants and prints one PASS or FAIL per run with its state count. [`scripts/tlc-trace.py`](scripts/tlc-trace.py) reduces a counter-example to the variables each step changed.
+[`scripts/tlc-matrix.sh`](scripts/tlc-matrix.sh) runs TLC with a matrix of constants and prints one PASS or FAIL per run with its state count. A failing run prints its error trace reduced by [`scripts/tlc-trace.py`](scripts/tlc-trace.py) to the variables each step changed. Copy [`examples/tla-template/`](examples/tla-template/BoundedQueue.tla) to start a spec and its matrix.
 
-[`scripts/lean-check.sh`](scripts/lean-check.sh) builds the pinned Lake project and fails on errors or `sorry`. Copy [`examples/lean-template/`](examples/lean-template/Model.lean) to start a new model project.
+[`scripts/lean-check.sh`](scripts/lean-check.sh) builds the pinned Lake project and fails on a build error, a `sorry`, or a theorem that `#print axioms` shows resting on a declared axiom. Copy [`examples/lean-template/`](examples/lean-template/Model.lean) to start a new model project.
 
 ## 1. Pick the targets
 
@@ -43,7 +43,7 @@ Write a table with one row per protocol before modelling. Record its threads, sh
 
 ## 2. Model one protocol per agent
 
-Spawn one agent per protocol, in parallel when supported, with the brief below. Each writes `tla/<Name>.tla` beside the code and checks it before reporting. Return the report to the main agent.
+Spawn one agent per protocol, in parallel when supported, with the brief below. Each writes `tla/<Name>.tla` beside the code, names its top-level formula `Spec` as the matrix runner requires, and checks it before reporting. Return the report to the main agent.
 
 Include the source files and line ranges, threads and shared variables from the table, and these modelling requirements:
 
@@ -61,7 +61,7 @@ Include the source files and line ranges, threads and shared variables from the 
 
 For each violation, in this order:
 
-1. Run `tlc-trace.py tlc.log`. Map each step to a code event and source line.
+1. Read the reduced trace that `tlc-matrix.sh` prints under the FAIL line. Map each step to a code event and source line.
 2. Check reachability against the real constants and callers. If a violation occurs at `Slots=1` while the code ships `Slots=4`, distinguish a dependency on the larger count from a reachable hang. Keep the boundary configuration in the matrix either way.
 3. Reproduce a reachable trace with a deterministic test, a sanitizer run, or a stress loop using the trace's counts. Hooks, a small slot count or barriers can force the interleaving. If no practical reproduction exists, report that limitation and the model configuration that demonstrates the violation.
 4. Apply the smallest fix that prevents the trace, update the spec to match, and rerun the whole matrix. Commit the spec and code together.
@@ -73,14 +73,14 @@ Use one agent per target, as in the TLA+ step, with the brief below. Copy [`exam
 
 1. Transcribe the state type and functions with the code's integer widths, rounding, division and order of operations. Use `UInt32` or `Int` with explicit bounds where appropriate, and `Nat` only when values cannot go negative. Keep the source function names and cite `file:line` in doc comments. Preserve any bug during transcription so the model checks the code as written.
 2. State the property as a `Prop` with a `Decidable` instance. It may describe an invariant, an encoder round trip, an index bound or states the machine must never reach.
-3. Write and evaluate a bounded exhaustive check before proving the theorem. The template's `badPairs` finds states where one step breaks the invariant; `#eval` prints concrete counter-examples. Set the bound above the code's slot count, batch size, window and other constants so it includes boundary cases.
-4. Prove one theorem per step or function for every size. Split on the guards, use `simp only [...]` to expose arithmetic, then use `omega` or `decide` for a finite type. If a proof needs a fact about the real code that the model lacks, name it in a comment. An unfinished proof may use `sorry`, but `lean-check.sh` reports it as a failure.
+3. Write and evaluate a bounded exhaustive check before proving the theorem. The template's `badPairs` finds states where one step breaks the invariant; `#eval` prints concrete counter-examples and `#guard` fails the build while any exist. Set the bound above the code's slot count, batch size, window and other constants so it includes boundary cases.
+4. Prove one theorem per step or function for every size. Split on the guards, use `simp only [...]` to expose arithmetic, then use `omega` or `decide` for a finite type. If a proof needs a fact about the real code that the model lacks, name it in a comment. An unfinished proof may use `sorry`, but `lean-check.sh` reports it as a failure. End the file with `#print axioms` for each theorem; the checker also fails a theorem that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`.
 5. Mutate the model with plausible bugs, such as `<` instead of `≤`, a missing `+ 1` or a swapped argument. Confirm that the bounded search finds a counter-example and the theorem fails. Revise properties that detect none of the relevant mutations.
 6. Report concrete inputs to the code's function, the source line of the failing arithmetic, a unit test with those inputs, and the fix. For a closed proof, report its assumptions, including integer widths and bounds.
 
 ## 5. Keep the proof
 
-Prepare the chosen tools in a separate CI setup step using [tool setup](references/setup.md). Run TLA+ specs through `tlc-matrix.sh` with a matrix file beside them. See [`examples/template.matrix`](examples/template.matrix) for the directives. Keep Lean projects and their toolchain pins in the repository, and run `lean-check.sh <dir>` in CI.
+Prepare the chosen tools in a separate CI setup step using [tool setup](references/setup.md). Run TLA+ specs through `tlc-matrix.sh` with a matrix file beside them. See [`examples/tla-template/checks.matrix`](examples/tla-template/checks.matrix) for the directives. Keep Lean projects and their toolchain pins in the repository, and run `lean-check.sh <dir>` in CI.
 
 Each model's header comment must name the source code and line numbers it models. Refresh the references when the code moves. Record what each model checks and its boundary configuration in the project's testing documentation.
 

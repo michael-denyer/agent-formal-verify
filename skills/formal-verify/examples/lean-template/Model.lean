@@ -8,10 +8,12 @@ This model checks the counters of a bounded queue with ordered output.
 1. Transcribe the state and steps from the code with the same arithmetic.
 2. State the invariant as a `Prop` with a `Decidable` instance.
 3. Run `#eval badPairs` to find states where a step violates the invariant
-   within the chosen bound.
+   within the chosen bound, and keep the `#guard` that fails the build on one.
 4. Prove the invariant for every size by cases on the step.
+5. List every theorem under `#print axioms` at the end of the file.
 
-Name any unfinished proof that uses `sorry`; `lean-check.sh` fails on it.
+Name any unfinished proof that uses `sorry`; `lean-check.sh` fails on it and
+on any theorem that `#print axioms` shows resting on a declared axiom.
 -/
 
 structure State where
@@ -43,7 +45,9 @@ def badPairs (w n : Nat) : List (State × State) :=
           | none => none
       else []
 
+-- `#eval` prints the counter-examples; `#guard` fails the build while any exist.
 #eval badPairs 2 6   -- []
+#guard (badPairs 2 6).isEmpty
 
 theorem invariant_init (w : Nat) : Invariant w ⟨0, 0⟩ := by
   simp [Invariant]
@@ -65,3 +69,7 @@ theorem consume_keeps_invariant (w : Nat) (s t : State) (hs : Invariant w s) (h 
     simp only [Invariant] at *
     omega
   · cases h
+
+#print axioms invariant_init
+#print axioms claim_keeps_invariant
+#print axioms consume_keeps_invariant
