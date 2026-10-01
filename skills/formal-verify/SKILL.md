@@ -1,11 +1,11 @@
 ---
 name: formal-verify
-description: "Model-check thread protocols with TLA+ and TLC, and prove sequential invariants with Lean 4. Map counter-examples to source locations, reproductions and fixes, and keep the models in CI. Use for /formal-verify, formal verification, model checking, Lean proofs, or concurrency bugs that runtime tests cannot reproduce."
+description: "Model-check thread protocols with TLA+ and TLC, and prove sequential invariants with Lean 4. Map counter-examples to source locations, reproductions and fixes, and keep the models in CI. Use for /agent-formal-verify:formal-verify, formal verification, model checking, Lean proofs, or concurrency bugs that runtime tests cannot reproduce."
 ---
 
 # Formal verify
 
-Model individual protocols or sequential invariants. Map counter-examples to events and locations in the source code. Before reporting a pass, confirm that each checked property detects a relevant mutation or that each Lean theorem is proved without `sorry`.
+Model individual protocols or sequential invariants. Map counter-examples to events and locations in the source code. Before reporting a pass, confirm that each checked property detects a relevant mutation and that the Lean checker passes.
 
 Choose tools according to the target:
 
@@ -16,80 +16,92 @@ Choose tools according to the target:
 
 A thread protocol that depends on arithmetic such as `slot = item mod window` needs both tools. Use TLA+ for the interleavings with the arithmetic as a constant, and Lean for the arithmetic.
 
-## Tool preparation
-
-On every verification request, pick targets from the current source and models before preparing tools. Resolve the invocation's target repository before running installed helpers, as described in [tool setup](references/setup.md).
-
-Before launching agents, run `scripts/setup.sh tla` when the selected targets need TLA+. Run `scripts/setup.sh lean <absolute-model-project-path>` for each distinct Lean pin they need. For a new Lean project, use the bundled template's pin. These helpers reuse ready tools and prepare missing tool versions. The user does not need to rerun `/setup` when a target or pin changes. Require a successful exit and a `READY` line. Keep installed templates read-only and copy models into the target repository.
-
-If a system prerequisite such as Java or elan is missing, use the [setup skill](../setup/SKILL.md) to prepare it within the user's installation constraints and existing authorization. Report any prerequisite that cannot be prepared. The low-level verification runners remain suitable for CI and do not install tools; CI runs preparation separately.
-
-Use the host runtime's shell and agent tools. Follow the user's model configuration when selecting agents. If delegation is unavailable, model targets sequentially.
-
-[`scripts/tlc-matrix.sh`](scripts/tlc-matrix.sh) runs TLC with a matrix of constants and prints one PASS or FAIL per run with its state count. A failing run prints its error trace reduced by [`scripts/tlc-trace.py`](scripts/tlc-trace.py) to the variables each step changed. Copy [`examples/tla-template/`](examples/tla-template/BoundedQueue.tla) to start a spec and its matrix.
-
-[`scripts/lean-check.sh`](scripts/lean-check.sh) builds the pinned Lake project and fails on a build error, a `sorry`, or a theorem that `#print axioms` shows resting on a declared axiom. Copy [`examples/lean-template/`](examples/lean-template/Model.lean) to start a new model project.
-
 ## 1. Pick the targets
 
 Search with `rg` for `pthread_cond`, `pthread_mutex`, `atomic_`, `std::condition_variable`, `sync.Cond`, `chan`, `select`, `asyncio.Condition`, `Semaphore`, `atexit` and `setjmp`. Also search for protocol state names such as `ready`, `stop`, `done`, `finished`, `pending`, `inflight`, `head`, `tail` and `exiting`. Classify each hit:
 
 - Model hand-written protocols, including hand-overs, bounded pipelines, queues with ordered output, shutdown, cleanup, retry and lease loops.
-- Check data-parallel loops over disjoint indices with the sanitizer.
+- Leave data-parallel loops over disjoint indices to ThreadSanitizer or the language's race detector, and say so in the reply.
 - For library-owned channels or executors, model the calling code.
 - Use Lean for arithmetic the protocol or output depends on. Examples include slot and splice indices, window bounds, sizes computed and checked differently, and encoder round trips. Search for `%`, `- 1`, `+ 1`, `>>`, `overlap`, `splice` and `offset` near the protocol's data.
 
-Write a table with one row per protocol before modelling. Record its threads, shared variables, every wait and what wakes it, terminal states such as joined or closed, and resources whose ownership moves. Include slots, buffers, file handles and resources that `close` frees. Start with waits that have no escape, resources freed by two paths, and errors raised on a different thread from the one that reports them. Read the whole source file for each protocol so the model follows the code.
+Write a table with one row per target before modelling. A protocol and the arithmetic it depends on are separate targets. For a protocol, record its threads, shared variables, every wait and what wakes it, terminal states such as joined or closed, and resources whose ownership moves. Include slots, buffers, file handles and resources that `close` frees. For a Lean target, record the functions, their integer types and the property. Start with waits that have no escape, resources freed by two paths, and errors raised on a different thread from the one that reports them. Read the whole source file for each target so the model follows the code.
 
-## 2. Model one protocol per agent
+## 2. Prepare the tools
 
-Spawn one agent per protocol, in parallel when supported, with the brief below. Each writes `tla/<Name>.tla` beside the code, names its top-level formula `Spec` as the matrix runner requires, and checks it before reporting. Return the report to the main agent.
+Prepare tools after picking targets and before launching agents. The helpers are in this skill's `scripts/` directory. Stay in the target repository and run each helper with `bash` and its absolute path. Pass absolute paths to models and matrices. [Tool setup](references/setup.md) describes the pins, caches and environment settings.
 
-Include the source files and line ranges, threads and shared variables from the table, and these modelling requirements:
+- When a target needs TLA+, run `bash <skill-dir>/scripts/setup.sh tla`.
+- For each distinct Lean pin the targets need, run `bash <skill-dir>/scripts/setup.sh lean <absolute-model-project-path>`. For a new Lean project, pass the bundled template, `<skill-dir>/examples/lean-template`.
+
+Require a successful exit and a `READY` line from each command. The setup helper reuses ready tools and prepares missing tool versions, so the user does not need to rerun `/agent-formal-verify:setup` when a target or pin changes. Keep the installed skill files read-only and copy templates into the target repository.
+
+If a system prerequisite such as Java or elan is missing, use the [setup skill](../setup/SKILL.md) to prepare it within the user's installation constraints and existing authorization. Report any prerequisite that cannot be prepared. If `java` on PATH has no runtime, set `JAVA` to a working JDK's `java` binary for the setup helper and the matrix runner.
+
+The helpers:
+
+- The setup helper, [`scripts/setup.sh`](scripts/setup.sh), is the only helper that downloads tools.
+- The matrix runner, [`scripts/tlc-matrix.sh`](scripts/tlc-matrix.sh), runs TLC with a matrix of constants and prints one PASS or FAIL per run with its state count. A failing run prints its error trace reduced by [`scripts/tlc-trace.py`](scripts/tlc-trace.py) to the variables each step changed. Copy [`examples/tla-template/`](examples/tla-template/BoundedQueue.tla) to start a spec and its matrix.
+- The Lean checker, [`scripts/lean-check.sh`](scripts/lean-check.sh), builds every `.lean` file in the pinned Lake project and audits every declaration of every built module. It fails on a build error, a `sorry`, a declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, or a `.lean` file that no Lake library owns. Copy [`examples/lean-template/`](examples/lean-template/Model.lean) to start a new model project.
+
+## 3. Model one protocol per agent
+
+Spawn one agent per protocol, in parallel when supported. Use the host runtime's agent tools and follow the user's model configuration when selecting agents. If delegation is unavailable, model the targets yourself, one at a time, under the same requirements. An agent does not see this skill, so its brief must contain:
+
+- the source files and line ranges, threads and shared variables from the table;
+- the absolute paths of the matrix runner and the TLA+ template, and any `JAVA` setting;
+- the files to write, `tla/<Name>.tla` and `tla/<Name>.matrix` in the target repository, or the same names in its existing model directory, with the top-level formula named `Spec` as the matrix runner requires;
+- the instruction to run `bash <absolute-path>/tlc-matrix.sh <absolute-path>/tla/<Name>.matrix` and to report only after reading its output;
+- every modelling requirement below, copied in full.
+
+One matrix file per spec lets parallel agents work without sharing a file.
+
+Modelling requirements for the brief:
 
 - Use one step per critical section under the mutex and one per unlocked phase, such as build, parse or consume. Add an explicit `lock` variable when multiple lock acquisitions can race.
 - Use a program counter per thread. Represent a condition-variable wait as a pc value in the wait set. Only a broadcast, signal or spurious wakeup can leave that set. The woken thread must retake the mutex and reread the state before acting. Give spurious wakeups no fairness requirement. In this encoding, a lost wakeup appears as a liveness violation rather than a TLC deadlock. Explain that in the model header and check liveness.
 - Model resource ownership as a variable. Each slot or buffer must be free, in exactly one queue, or held by exactly one thread. Each produced item must be recorded by the consumer, awaiting hand-over, or freed.
 - When `longjmp`, an exception, a panic or `exit()` can leave a critical section without unlocking, use separate variables for the mutex's actual owner and the lock ownership recorded in the thread's live frames. An unwind can leave these inconsistent and block later acquisitions. Preserve that state so the model can detect the hang. List every allocation and exit call that can run under each lock, including out-of-memory exits.
 - Let the consumer call `next` any number of times, stop calling, or call `close` from any idle point. Include close before the first call, after the last item and after an error. When the producer has a failure path, let it fail at any item through a constant set `FailAt`.
-- Check small instances and boundary cases. Use the shipped slot count plus 1 and 2, item counts of 0, 1, 3 and 5, and one, two and three workers.
+- Check small instances and boundary cases. Use slot counts of 1, 2 and the shipped count, item counts of 0, 1, 3 and 5, and one, two and three workers.
 - Check `TypeOK`, the ownership partition, delivery order, no delivery after end or error, the documented error-ordering guarantee, and no double free or leak at `closed`. For liveness, check that each blocking call returns, `close` terminates from every allowed calling state, and a run without `close` reaches the end. Require weak fairness on thread steps except consumer choices and spurious wakeups. Add strong fairness on a mutex acquisition only when a counter-example shows pure starvation by a spuriously waking peer. Name that assumption in the spec.
-- Before reporting a pass, introduce mutations that represent plausible code bugs. Try replacing `while` with `if`, removing a broadcast, replacing FIFO order with stack order, leaving a flag set, or taking an item without removing it. Record which property detects each mutation. Revise properties that detect none of the relevant mutations.
-- Report file paths, the exact TLC command for each configuration, and a table of state counts and verdicts. Map each counter-example to code events with `file:line`. Assess reachability, identify real-code constraints the model lacks, and list properties it could not express.
+- Before reporting a pass, introduce mutations that represent plausible code bugs. Try replacing `while` with `if`, removing a broadcast, replacing FIFO order with stack order, leaving a flag set, or taking an item without removing it. Apply one mutation at a time to a copy of the spec, or revert it before the next, so the spec left in the repository is unmutated. Record which property detects each mutation. Revise properties that detect none of the relevant mutations.
+- Report file paths, the exact matrix runner command, and a table of run labels, state counts and verdicts. Map each counter-example to code events with `file:line`. Assess reachability, identify real-code constraints the model lacks, and list properties it could not express.
 
-## 3. Read the counter-example back into the code
+## 4. Read the counter-example back into the code
 
 For each violation, in this order:
 
-1. Read the reduced trace that `tlc-matrix.sh` prints under the FAIL line. Map each step to a code event and source line.
-2. Check reachability against the real constants and callers. If a violation occurs at `Slots=1` while the code ships `Slots=4`, distinguish a dependency on the larger count from a reachable hang. Keep the boundary configuration in the matrix either way.
-3. Reproduce a reachable trace with a deterministic test, a sanitizer run, or a stress loop using the trace's counts. Hooks, a small slot count or barriers can force the interleaving. If no practical reproduction exists, report that limitation and the model configuration that demonstrates the violation.
-4. Apply the smallest fix that prevents the trace, update the spec to match, and rerun the whole matrix. Commit the spec and code together.
-5. Use one PR per bug. Include the spec, matrix entry and fix, with the state counts and mutation results in the description.
+1. Read the reduced trace that the matrix runner prints under the FAIL line. Map each step to a code event and source line.
+2. Check reachability against the real constants and callers. If a violation occurs at `Slots=1` while the code ships `Slots=4`, decide whether the trace needs the smaller count or can also occur at the shipped one. Report the first as safe only while the count stays at the shipped value, and the second as a reachable bug. Keep the boundary configuration in the matrix either way.
+3. Reproduce a reachable trace with a deterministic test, a ThreadSanitizer or race-detector run, or a stress loop using the trace's counts. Hooks, a small slot count or barriers can force the interleaving. If no practical reproduction exists, report that limitation and the model configuration that demonstrates the violation.
+4. Change code only when the user asked for fixes. Otherwise report the trace, the reproduction and the proposed fix, and stop here.
+5. Apply the smallest fix that prevents the trace, update the spec to match, and rerun the whole matrix. Keep the spec and code change together.
+6. When the user asked for commits or pull requests, use one PR per bug. Include the spec, matrix and fix, with the state counts and mutation results in the description.
 
-## 4. Lean for the sequential core
+## 5. Lean for the sequential core
 
-Use one agent per target, as in the TLA+ step, with the brief below. Copy [`examples/lean-template/`](examples/lean-template/Model.lean), including `lakefile.toml` and the pinned `lean-toolchain`. Add Mathlib only when the arithmetic needs it, since its dependencies can increase setup and build time.
+Use one agent per target, as in step 3. The brief contains the source files and line ranges, the absolute paths of the Lean checker and the Lean template, and the numbered steps below, copied in full. Each agent copies [`examples/lean-template/`](examples/lean-template/Model.lean), including `lakefile.toml`, `lake-manifest.json` and the pinned `lean-toolchain`, to `lean/<Name>/` in the target repository, and runs `bash <absolute-path>/lean-check.sh <absolute-path>/lean/<Name>` before reporting. Every `.lean` file in the project must belong to a library in the lakefile: with the template, that is `Model.lean` and files under `Model/`. Add Mathlib only when the arithmetic needs it, since its dependencies can increase setup and build time.
 
 1. Transcribe the state type and functions with the code's integer widths, rounding, division and order of operations. Use `UInt32` or `Int` with explicit bounds where appropriate, and `Nat` only when values cannot go negative. Keep the source function names and cite `file:line` in doc comments. Preserve any bug during transcription so the model checks the code as written.
 2. State the property as a `Prop` with a `Decidable` instance. It may describe an invariant, an encoder round trip, an index bound or states the machine must never reach.
 3. Write and evaluate a bounded exhaustive check before proving the theorem. The template's `badPairs` finds states where one step breaks the invariant; `#eval` prints concrete counter-examples and `#guard` fails the build while any exist. Set the bound above the code's slot count, batch size, window and other constants so it includes boundary cases.
-4. Prove one theorem per step or function for every size. Split on the guards, use `simp only [...]` to expose arithmetic, then use `omega` or `decide` for a finite type. If a proof needs a fact about the real code that the model lacks, name it in a comment. An unfinished proof may use `sorry`, but `lean-check.sh` reports it as a failure. End the file with `#print axioms` for each theorem; the checker also fails a theorem that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`.
-5. Mutate the model with plausible bugs, such as `<` instead of `≤`, a missing `+ 1` or a swapped argument. Confirm that the bounded search finds a counter-example and the theorem fails. Revise properties that detect none of the relevant mutations.
-6. Report concrete inputs to the code's function, the source line of the failing arithmetic, a unit test with those inputs, and the fix. For a closed proof, report its assumptions, including integer widths and bounds.
+4. Prove one theorem per step or function for every size. Split on the guards, use `simp only [...]` to expose arithmetic, then use `omega` or `decide` for a finite type. If a proof needs a fact about the real code that the model lacks, state it as a theorem hypothesis and name it in a comment. Do not declare it as an `axiom`. An unfinished proof may use `sorry`, but the Lean checker reports it as a failure. The checker also fails every declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, which also rules out `native_decide`.
+5. Mutate the model with plausible bugs, such as `<` instead of `≤`, a missing `+ 1` or a swapped argument. Confirm that the bounded search finds a counter-example and the theorem fails. Apply each mutation to a copy of the project, or revert it before the next, so the model left in the repository is unmutated. Revise properties that detect none of the relevant mutations.
+6. Report the Lean checker command and its PASS or FAIL line, the mutation results, concrete inputs to the code's function, the source line of the failing arithmetic, a unit test with those inputs, and the proposed fix. Step 4's rules on reachability, fixes and pull requests apply to Lean counter-examples too. For a closed proof, report its assumptions, including integer widths and bounds.
 
-## 5. Keep the proof
+## 6. Keep the proof
 
-Prepare the chosen tools in a separate CI setup step using [tool setup](references/setup.md). Run TLA+ specs through `tlc-matrix.sh` with a matrix file beside them. See [`examples/tla-template/checks.matrix`](examples/tla-template/checks.matrix) for the directives. Keep Lean projects and their toolchain pins in the repository, and run `lean-check.sh <dir>` in CI.
+Add CI only when the user asked for it or the repository already runs models in CI. Otherwise give the commands in the reply. The CI section of [tool setup](references/setup.md) describes how a CI job obtains the helpers, which are not in the target repository, and prepares the tools in a separate setup step. Run each matrix file through the matrix runner; see [`examples/tla-template/checks.matrix`](examples/tla-template/checks.matrix) for the directives. Keep Lean projects and their toolchain pins in the repository, and run the Lean checker on each project.
 
 Each model's header comment must name the source code and line numbers it models. Refresh the references when the code moves. Record what each model checks and its boundary configuration in the project's testing documentation.
 
 ## What this does not cover
 
-These models do not check memory ordering below the mutex. Keep sanitizer checks. Model floating-point results as the integers they round to, unless the property concerns the rounding itself.
+These models do not check memory ordering below the mutex. Keep the project's ThreadSanitizer or race-detector checks. Model floating-point results as the integers they round to, unless the property concerns the rounding itself.
 
 A passing model establishes its stated properties under its assumptions. Report any real-code constraints the model omits and the hypotheses each theorem requires, so the reader can assess whether the result applies to the code.
 
 ## Reply
 
-Return the protocol table with a verdict per row. For each counter-example, report the code events, reachability, reproduction and fix with its PR link. Include the matrix command, PASS count and properties that could not be expressed. Each verdict must include its state count or mutation results.
+Return the target table with a verdict per row. Each TLA+ verdict includes its state counts and mutation results. Each Lean verdict includes the checker's PASS or FAIL line and mutation results. For each counter-example, report the code events, reachability, reproduction and the fix or proposed fix, with a PR link when one was opened. Include the matrix runner and Lean checker commands, the PASS count and properties that could not be expressed.

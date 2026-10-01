@@ -1,4 +1,0 @@
-ℹ [2/3] Built Model (193ms)
-info: Model.lean:46:0: []
-info: Model.lean:72:0: 'anything' depends on axioms: [cheat]
-Build completed successfully (3 jobs).

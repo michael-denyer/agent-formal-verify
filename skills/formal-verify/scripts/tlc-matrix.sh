@@ -58,7 +58,8 @@ check_run() {
   if "$JAVA" -XX:+UseParallelGC -cp "$TLC_JAR" tlc2.TLC -workers "$TLC_WORKERS" -cleanup -metadir "$dir/states" \
       -config "$dir/MC.cfg" "$dir/$name.tla" > "$dir/tlc.log" 2>&1 \
       && grep -q "No error has been found" "$dir/tlc.log"; then
-    echo "PASS $name $label $(grep -o '[0-9,]* distinct states found' "$dir/tlc.log" | head -1)"
+    # Progress lines carry interim counts; the last match is the final one.
+    echo "PASS $name $label $(grep -o '[0-9,]* distinct states found' "$dir/tlc.log" | tail -1)"
   else
     echo "FAIL $name $label: $(grep -m1 "^Error:" "$dir/tlc.log")"
     grep "^Error:" "$dir/tlc.log" | sed -n '2,5p'

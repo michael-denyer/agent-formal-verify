@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with setup, skills or verification runners.
+description: Report a problem with setup, skills or helpers.
 body:
   - type: input
     id: version

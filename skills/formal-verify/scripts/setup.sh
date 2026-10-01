@@ -9,9 +9,10 @@ case ${1:-} in
     # shellcheck source=skills/formal-verify/scripts/tlc-tools.sh
     source "$HERE/tlc-tools.sh"
     require_tlc_runtime
-    if [ -n "$TLC_JAR_SUPPLIED" ] || [ -f "$TLC_JAR" ]; then
+    if [ -n "$TLC_JAR_SUPPLIED" ]; then
       tlc_jar_ready
-    else
+    # A cached JAR that fails the pin is replaced by a fresh download.
+    elif ! check_tlc_jar "$TLC_JAR" > /dev/null; then
       command -v curl > /dev/null || { echo "FAIL curl is not on PATH; install curl"; exit 1; }
       mkdir -p "$TLC_CACHE"
       download=$(mktemp "$TLC_CACHE/.tla2tools.XXXXXX")
@@ -31,7 +32,7 @@ case ${1:-} in
     toolchain=$(lean_pin "$dir") || { echo "$toolchain"; exit 1; }
     if ! lean_pin_ready "$toolchain"; then
       elan toolchain install "$toolchain"
-      lean_pin_ready "$toolchain"
+      lean_pin_ready "$toolchain" || { echo "FAIL $toolchain does not run after installation"; exit 1; }
     fi
     echo "READY Lean $toolchain"
     ;;

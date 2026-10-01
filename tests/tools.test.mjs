@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
@@ -71,6 +71,16 @@ test("TLC setup verifies downloads before publishing them and removes failed tem
   assert.deepEqual(readdirSync(join(dir, "cache")), []);
 });
 
+test("TLC setup downloads again when the cached JAR does not match the pin", () => {
+  const dir = fixture();
+  mkdirSync(join(dir, "cache"));
+  writeFileSync(join(dir, "cache/tla2tools-v1.7.4.jar"), "truncated");
+  command(dir, "curl", 'echo download >> "$TASK_TRACE"; exit 99');
+  const result = run(dir, "setup.sh", ["tla"]);
+  assert.equal(result.status, 99);
+  assert.equal(readFileSync(join(dir, "calls"), "utf8"), "download\n");
+});
+
 test("TLC setup accepts an explicitly supplied local JAR without contacting a release host", () => {
   const dir = fixture();
   const jar = join(dir, "local tools.jar");
@@ -135,6 +145,7 @@ test("Lean preparation reports failure when installation does not produce a work
   const result = run(dir, "setup.sh", ["lean", project]);
   assert.equal(result.status, 1);
   excludes(result.stdout, "READY");
+  includes(result.stdout, "FAIL leanprover/lean4:v4.34.1 does not run after installation");
 });
 
 function reduce(log) {
@@ -206,6 +217,15 @@ test("the matrix runner reduces the trace of an invariant violation", () => {
   excludes(result.stdout, "/\\ y = 1");
 });
 
+test("the matrix runner reports the final state count, not a progress line's", () => {
+  const { matrix } = matrixFixture(["spec a/One.tla", "run n=450 | N=450"], [
+    'echo "Progress(294) at 2026-10-01 17:24:40: 12,610,693 states generated (12,610,693 s/min), 4,246,783 distinct states found (4,246,783 ds/min), 43,235 states left on queue."',
+    'echo "Model checking completed. No error has been found."',
+    'echo "274591352 states generated, 91733851 distinct states found, 0 states left on queue."',
+  ].join("\n"));
+  assert.equal(matrix().stdout, "PASS One n=450 91733851 distinct states found\n");
+});
+
 test("the matrix runner gives each run only its own spec directory's modules", () => {
   const { dir, matrix } = matrixFixture(
     ["spec a/One.tla", "run first | N=1", "\t", "spec b/Two.tla", "run second |"],
@@ -248,38 +268,72 @@ test("the matrix runner fails a run line without a bar instead of inventing a co
   assert.equal(existsSync(join(dir, "calls")), false);
 });
 
-function leanFixture(log, status = 0) {
+const audited = "AUDITED 37 declarations";
+function leanFixture(log, { status = 0, audit = audited } = {}) {
   const dir = fixture();
-  const project = join(dir, "model");
+  const project = join(realpathSync(dir), "model");
   mkdirSync(project);
   writeFileSync(join(project, "lakefile.toml"), 'name = "model"\n');
   writeFileSync(join(project, "lean-toolchain"), "leanprover/lean4:v4.34.1\n");
-  command(dir, "elan", `[ "$4" = "--version" ] && exit 0\ncat "${join(logs, log)}"; exit ${status}`);
-  return run(dir, "lean-check.sh", [project]);
+  const lib = ".lake/build/lib/lean";
+  for (const file of ["Model.lean", "Model/Sub.lean", `${lib}/Model.olean`, `${lib}/Model/Sub.olean`, ".lake/packages/dep/Dep.lean"]) {
+    mkdirSync(join(project, file, ".."), { recursive: true });
+    writeFileSync(join(project, file), "");
+  }
+  command(dir, "elan", [
+    '[ "$4" = "--version" ] && exit 0',
+    'if [ "$6" = "env" ]; then echo audit >> "$TASK_TRACE"; grep "^import" "$8"; printf "%s\\n" "$TASK_AUDIT"; exit 0; fi',
+    'shift 6; printf "%s\\n" "$@" > "$TASK_BUILT"',
+    `cat "${join(logs, log)}"; exit ${status}`,
+  ].join("\n"));
+  return { dir, project, result: run(dir, "lean-check.sh", [project], { TASK_AUDIT: audit, TASK_BUILT: join(dir, "built") }) };
 }
 
 test("the Lean checker prints multi-line search output whole and ignores error text in output", () => {
-  const result = leanFixture("lake-search.log");
+  const { result } = leanFixture("lake-search.log");
   assert.equal(result.status, 0);
   includes(result.stdout, " ({ next := 3, consumed := 1 }, { next := 4, consumed := 1 })]\n");
-  includes(result.stdout, "PASS ");
+  includes(result.stdout, "no sorry, no extra axioms, 37 declarations audited\n");
 });
 
 test("the Lean checker fails a build that uses sorry", () => {
-  const result = leanFixture("lake-sorry.log");
+  const { result } = leanFixture("lake-sorry.log");
   assert.equal(result.status, 1);
   includes(result.stdout, "1 sorries");
   includes(result.stdout, "warning: Model.lean:69:8: declaration uses `sorry`");
 });
 
-test("the Lean checker fails a theorem that depends on a declared axiom", () => {
-  const result = leanFixture("lake-axiom.log");
+test("the Lean checker fails a declaration that the audit finds resting on a declared axiom", () => {
+  const { result } = leanFixture("lake-search.log", { audit: "AXIOMS 'bogus' depends on axioms: #[cheat]\n" + audited });
   assert.equal(result.status, 1);
-  includes(result.stdout, "'anything' depends on axioms: [cheat]");
+  includes(result.stdout, "1 declarations on extra axioms");
+  includes(result.stdout, "AXIOMS 'bogus' depends on axioms: #[cheat]\n");
 });
 
-test("the Lean checker fails when Lake fails", () => {
-  const result = leanFixture("lake-search.log", 1);
+test("the Lean checker fails when the audit reports no declarations", () => {
+  for (const audit of ["error: unknown constant", "AUDITED 0 declarations"]) {
+    const { result } = leanFixture("lake-search.log", { audit });
+    assert.equal(result.status, 1);
+    includes(result.stdout, "the axiom audit did not run or found no declarations:\nimport Lean\nimport Model\nimport Model.Sub\n" + audit);
+  }
+});
+
+test("the Lean checker builds every project source by path and audits every built module", () => {
+  const { dir, project, result } = leanFixture("lake-search.log", { audit: "AUDITED 0 declarations" });
+  assert.equal(readFileSync(join(dir, "built"), "utf8"), `${project}/Model.lean\n${project}/Model/Sub.lean\n`);
+  includes(result.stdout, "import Lean\nimport Model\nimport Model.Sub\nAUDITED 0");
+});
+
+test("the Lean checker explains a source file that no library owns, without auditing", () => {
+  const { dir, result } = leanFixture("lake-unowned.log", { status: 1 });
+  assert.equal(result.status, 1);
+  includes(result.stdout, "error: unknown module source path `/model/Scratch/Model.lean`\nno library owns that file");
+  assert.equal(existsSync(join(dir, "calls")), false);
+});
+
+test("the Lean checker fails when Lake fails, without auditing", () => {
+  const { dir, result } = leanFixture("lake-search.log", { status: 1 });
   assert.equal(result.status, 1);
   includes(result.stdout, "lake exit 1");
+  assert.equal(existsSync(join(dir, "calls")), false);
 });

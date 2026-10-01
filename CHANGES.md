@@ -1,5 +1,17 @@
 # Changes
 
+## 0.1.10 - sound Lean audit and clearer agent instructions
+
+`lean-check.sh` audits every declaration of every built module with Lean, so a theorem that rests on a declared axiom, `native_decide` or `sorry` fails even when the model has no `#print axioms` line. It builds every `.lean` file in the project by path, so an unimported module is checked and a file that no Lake library owns fails; a default build skipped both. A project with no declarations fails. A long theorem name no longer causes a false failure. The Lean template drops its `#print axioms` lines.
+
+The matrix runner reports the final state count; it previously reported the count from TLC's first progress line on longer runs.
+
+`setup.sh tla` replaces a cached JAR that does not match the pin. `setup.sh lean` prints a `FAIL` line when an installed toolchain does not run.
+
+The formal-verify skill prepares tools after picking targets, tells each agent brief to carry the helper paths, uses one matrix file per spec, and requires mutations for both tools on a copy or reverted. It changes code, commits and opens pull requests only when the user asked for fixes. Tool setup explains how CI obtains the helpers. Both skills run helpers by absolute path with `bash`.
+
+Removed `.codex-plugin/prompts/`, which the Codex plugin manifest never loaded.
+
 ## 0.1.9 - verifier fixes and worked TLA+ example
 
 The matrix runner now reduces the trace of an invariant violation or a deadlock; it previously reduced only temporal counter-examples and printed the raw log for the rest. The reducer reads one-variable specs and exits 1 on a log without a trace.

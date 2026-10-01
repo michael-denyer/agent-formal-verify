@@ -2,8 +2,9 @@
 # Copyright (c) 2026 Michael Denyer
 # SPDX-License-Identifier: GPL-3.0-only
 # Runs the real TLC and Lean checkers on the bundled examples, then on copies
-# with one guard weakened, which both checkers must reject. Needs the tools
-# that setup.sh prepares; see skills/formal-verify/references/setup.md.
+# with one guard weakened, a hidden axiom or an unowned file, which the
+# checkers must reject. Needs the tools that setup.sh prepares; see
+# skills/formal-verify/references/setup.md.
 #
 # Usage: models.sh
 set -euo pipefail
@@ -40,4 +41,22 @@ sed -i.orig 's|if s.next < s.consumed + w then|if s.next ≤ s.consumed + w then
 rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
 grep -q "did not evaluate to .true." "$work/lean.out"
 
-echo "ok: both examples pass and both weakened guards are rejected"
+# A theorem resting on a declared axiom, with no #print axioms line to show it.
+cp "$work/lean/Model.lean.orig" "$work/lean/Model.lean"
+printf 'axiom cheat : ∀ n : Nat, n < 3\ntheorem bogus : (10 : Nat) < 3 := cheat 10\n' >> "$work/lean/Model.lean"
+rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
+grep -qF "AXIOMS 'bogus' depends on axioms: #[cheat]" "$work/lean.out"
+
+# A source touched after its build still passes.
+cp "$work/lean/Model.lean.orig" "$work/lean/Model.lean"
+bash "$scripts/lean-check.sh" "$work/lean"
+touch "$work/lean/Model.lean"
+bash "$scripts/lean-check.sh" "$work/lean"
+
+# An unfinished proof in a file that no library owns, named like a built module.
+mkdir "$work/lean/Scratch"
+echo 'theorem unproved : (10 : Nat) < 3 := sorry' > "$work/lean/Scratch/Model.lean"
+rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
+grep -q "unknown module source path .*/Scratch/Model.lean" "$work/lean.out"
+
+echo "ok: both examples pass; the weakened guards, a hidden axiom and an unowned file are rejected"
