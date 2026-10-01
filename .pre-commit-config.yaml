@@ -3,15 +3,9 @@ exclude: ^(\.agents/skills/|skills/formal-verify/examples/lean-template/\.lake/)
 repos:
   - repo: local
     hooks:
-      - id: plugin-check
-        name: Validate plugin metadata and skill references
-        entry: node tools/check.mjs
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: tool-tests
-        name: Test verification helpers
-        entry: bun test tests/
+      - id: tests
+        name: Test plugin metadata, skill references and verification helpers
+        entry: node --test tests/plugin.test.mjs tests/tools.test.mjs
         language: system
         pass_filenames: false
         always_run: true
