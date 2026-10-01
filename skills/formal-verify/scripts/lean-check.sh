@@ -10,10 +10,11 @@ set -uo pipefail
 dir=${1:?usage: lean-check.sh <lake-project-dir>}
 HERE=$(cd "$(dirname "$0")" && pwd)
 [ -f "$dir/lakefile.toml" ] || [ -f "$dir/lakefile.lean" ] || { echo "FAIL $dir has no lakefile"; exit 1; }
-command -v elan > /dev/null || { echo "FAIL elan is not on PATH (install elan: https://github.com/leanprover/elan)"; exit 1; }
-[ -f "$dir/lean-toolchain" ] || { echo "FAIL $dir has no lean-toolchain pin"; exit 1; }
-toolchain=$(tr -d '\r\n' < "$dir/lean-toolchain")
-elan run "$toolchain" lake --version > /dev/null 2>&1 \
+# shellcheck source=skills/formal-verify/scripts/lean-tools.sh
+source "$HERE/lean-tools.sh"
+# On failure the captured output is the FAIL line.
+toolchain=$(lean_pin "$dir") || { echo "$toolchain"; exit 1; }
+lean_pin_ready "$toolchain" \
   || { echo "FAIL $toolchain is not ready; run bash $HERE/setup.sh lean $dir"; exit 1; }
 
 log=$(mktemp)

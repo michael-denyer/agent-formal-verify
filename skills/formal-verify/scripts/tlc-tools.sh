@@ -4,8 +4,10 @@
 # Shared tool pin and prerequisite checks; sourcing this file downloads nothing.
 TLA_VERSION=v1.7.4
 TLA_SHA256=936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
+TLC_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 JAVA=${JAVA:-java}
 TLC_CACHE=${TLC_CACHE:-$HOME/.cache/tla}
+TLC_JAR_SUPPLIED=${TLC_JAR:+yes}
 TLC_JAR=${TLC_JAR:-$TLC_CACHE/tla2tools-$TLA_VERSION.jar}
 
 require_tlc_runtime() {
@@ -18,7 +20,7 @@ require_tlc_runtime() {
 
 check_tlc_jar() {
   local jar=$1 got
-  [ -f "$jar" ] || { echo "FAIL $jar is missing; run bash $HERE/setup.sh tla"; return 1; }
+  [ -f "$jar" ] || { echo "FAIL $jar is missing; run bash $TLC_TOOLS_DIR/setup.sh tla"; return 1; }
   if command -v sha256sum > /dev/null; then
     got=$(sha256sum "$jar") || return 1
   elif command -v shasum > /dev/null; then
@@ -29,4 +31,13 @@ check_tlc_jar() {
   fi
   got=${got%% *}
   [ "$got" = "$TLA_SHA256" ] || { echo "FAIL $jar has sha256 $got, want $TLA_SHA256"; return 1; }
+}
+
+# A JAR the user supplies is trusted; the cached one must match the pin.
+tlc_jar_ready() {
+  if [ -n "$TLC_JAR_SUPPLIED" ]; then
+    [ -f "$TLC_JAR" ] || { echo "FAIL supplied TLC_JAR $TLC_JAR does not exist"; return 1; }
+  else
+    check_tlc_jar "$TLC_JAR"
+  fi
 }

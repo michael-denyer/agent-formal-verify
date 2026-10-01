@@ -6,14 +6,11 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 case ${1:-} in
   tla)
-    supplied_jar=${TLC_JAR:-}
     # shellcheck source=skills/formal-verify/scripts/tlc-tools.sh
     source "$HERE/tlc-tools.sh"
     require_tlc_runtime
-    if [ -n "$supplied_jar" ]; then
-      [ -f "$TLC_JAR" ] || { echo "FAIL supplied TLC_JAR $TLC_JAR does not exist"; exit 1; }
-    elif [ -f "$TLC_JAR" ]; then
-      check_tlc_jar "$TLC_JAR"
+    if [ -n "$TLC_JAR_SUPPLIED" ] || [ -f "$TLC_JAR" ]; then
+      tlc_jar_ready
     else
       command -v curl > /dev/null || { echo "FAIL curl is not on PATH; install curl"; exit 1; }
       mkdir -p "$TLC_CACHE"
@@ -28,12 +25,13 @@ case ${1:-} in
     ;;
   lean)
     dir=${2:?usage: setup.sh lean <lake-project-dir>}
-    command -v elan > /dev/null || { echo "FAIL elan is not on PATH; install elan from https://github.com/leanprover/elan"; exit 1; }
-    [ -f "$dir/lean-toolchain" ] || { echo "FAIL $dir has no lean-toolchain pin"; exit 1; }
-    toolchain=$(tr -d '\r\n' < "$dir/lean-toolchain")
-    if ! elan run "$toolchain" lake --version > /dev/null 2>&1; then
+    # shellcheck source=skills/formal-verify/scripts/lean-tools.sh
+    source "$HERE/lean-tools.sh"
+    # On failure the captured output is the FAIL line.
+    toolchain=$(lean_pin "$dir") || { echo "$toolchain"; exit 1; }
+    if ! lean_pin_ready "$toolchain"; then
       elan toolchain install "$toolchain"
-      elan run "$toolchain" lake --version > /dev/null
+      lean_pin_ready "$toolchain"
     fi
     echo "READY Lean $toolchain"
     ;;
