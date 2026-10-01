@@ -10,6 +10,8 @@ Each matrix run gets its own directory, so a spec no longer resolves modules lef
 
 Added a TLA+ template beside the Lean one; it replaces `examples/template.matrix`. CI runs both checkers on the examples and on mutated copies.
 
+The tests run under `node --test` and include the metadata checks that `tools/check.mjs` held, so development no longer needs Bun.
+
 ## 0.1.8 - validation and simpler metadata
 
 Removed the separate root version file. Validation compares the plugin manifests, marketplace entry and release notes directly.

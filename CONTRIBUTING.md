@@ -4,7 +4,7 @@ Use [GitHub issues](https://github.com/michael-denyer/agent-formal-verify/issues
 
 ## Develop locally
 
-Clone the repository and install Node.js, Bun 1.3.14 and [prek](https://prek.j178.dev/installation/). Enable the commit hooks once per clone, then run all checks from the repository root:
+Clone the repository and install Node.js 22 or later and [prek](https://prek.j178.dev/installation/). Enable the commit hooks once per clone, then run all checks from the repository root:
 
 ```shell
 prek install
@@ -32,13 +32,13 @@ Use an unprefixed branch name. Keep each pull request focused on one problem. De
 
 ## Release
 
-Update both plugin manifests, the Claude marketplace entry and `CHANGES.md` together. `node tools/check.mjs` checks that the versions and license declarations agree. Document changes to setup requirements or pinned tools so users know what an update requires.
+Update both plugin manifests, the Claude marketplace entry and `CHANGES.md` together. `node --test tests/plugin.test.mjs` checks that the versions, descriptions and license declarations agree. Document changes to setup requirements or pinned tools so users know what an update requires.
 
 ## Dependency updates
 
 Dependabot opens weekly update PRs for GitHub Actions, the pinned lint hooks and prek. Updates wait seven days after release and must pass CI before review; they are not merged automatically.
 
-Update the Bun version, isolated-installation `skills` CLI pin, lychee image tag and digest, zizmor tool version, and elan version and checksum manually in CI. Lean pins and TLC's version and checksum also need deliberate updates: run a valid model and a failing property with the new tools before changing their pins.
+Update the isolated-installation `skills` CLI pin, lychee image tag and digest, zizmor tool version, and elan version and checksum manually in CI. Lean pins and TLC's version and checksum also need deliberate updates: run a valid model and a failing property with the new tools before changing their pins.
 
 ## License
 
