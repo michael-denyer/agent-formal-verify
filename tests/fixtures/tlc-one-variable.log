@@ -1,0 +1,17 @@
+Error: Invariant Two is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+x = <<>>
+
+State 2: <Next line 6, col 10 to line 6, col 146 of module One>
+x = << [ id |-> 0,
+     payload |-> "a fairly long string value to force wrapping",
+     more |-> <<1, 2, 3, 4, 5, 6, 7, 8, 9>> ] >>
+
+State 3: <Next line 6, col 10 to line 6, col 146 of module One>
+x = << [ id |-> 0,
+     payload |-> "a fairly long string value to force wrapping",
+     more |-> <<1, 2, 3, 4, 5, 6, 7, 8, 9>> ],
+   [ id |-> 1,
+     payload |-> "a fairly long string value to force wrapping",
+     more |-> <<1, 2, 3, 4, 5, 6, 7, 8, 9>> ] >>

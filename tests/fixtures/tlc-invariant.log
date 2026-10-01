@@ -1,0 +1,17 @@
+Error: Invariant Small is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ x = 0
+/\ y = 0
+
+State 2: <Step line 6, col 9 to line 8, col 42 of module Two>
+/\ x = 1
+/\ y = 0
+
+State 3: <Step line 6, col 9 to line 8, col 42 of module Two>
+/\ x = 2
+/\ y = 1
+
+State 4: <Step line 6, col 9 to line 8, col 42 of module Two>
+/\ x = 3
+/\ y = 1

@@ -1,5 +1,15 @@
 # Changes
 
+## 0.1.9 - verifier fixes and worked TLA+ example
+
+The matrix runner now reduces the trace of an invariant violation or a deadlock; it previously reduced only temporal counter-examples and printed the raw log for the rest. The reducer reads one-variable specs and exits 1 on a log without a trace.
+
+Each matrix run gets its own directory, so a spec no longer resolves modules left by an earlier spec. A missing spec is reported in one line.
+
+`lean-check.sh` prints multi-line `#eval` output whole, no longer counts `error:` text in output as a build error, and fails a theorem that `#print axioms` shows resting on a declared axiom. The Lean template guards its bounded search with `#guard`, so a counter-example fails the build.
+
+Added a TLA+ template beside the Lean one; it replaces `examples/template.matrix`. CI runs both checkers on the examples and on mutated copies.
+
 ## 0.1.8 - validation and simpler metadata
 
 Removed the separate root version file. Validation compares the plugin manifests, marketplace entry and release notes directly.
