@@ -1,0 +1,42 @@
+exclude: ^(\.agents/skills/|skills/formal-verify/examples/lean-template/\.lake/)
+
+repos:
+  - repo: local
+    hooks:
+      - id: plugin-check
+        name: Validate plugin metadata and skill references
+        entry: node tools/check.mjs
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: tool-tests
+        name: Test verification helpers
+        entry: bun test tests/
+        language: system
+        pass_filenames: false
+        always_run: true
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
+    hooks:
+      - id: check-json
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: d7a4f7cf4914d3bffb9b83bdbc45fd2a00c91ff9 # frozen: v0.18.1
+    hooks:
+      - id: markdownlint-cli2
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: 745eface02aef23e168a8afb6b5737818efbea95 # frozen: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: a56c0b927e6465d37cae3e97d35d4d18ab2b96cd # frozen: v0.16.9
+    hooks:
+      - id: ruff-check
+        args: [--isolated]
+  - repo: https://github.com/rhysd/actionlint
+    rev: 914e7df21a07ef503a81201c76d2b11c789d3fca # frozen: v1.7.12
+    hooks:
+      - id: actionlint

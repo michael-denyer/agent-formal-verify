@@ -1,0 +1,16 @@
+{
+  "name": "agent-formal-verify",
+  "owner": {
+    "name": "Michael Denyer",
+    "url": "https://github.com/michael-denyer"
+  },
+  "description": "TLA+ model checking and Lean proofs.",
+  "plugins": [
+    {
+      "name": "agent-formal-verify",
+      "source": "./",
+      "version": "0.1.8",
+      "description": "Model-check thread protocols with TLA+ and prove sequential invariants with Lean 4."
+    }
+  ]
+}

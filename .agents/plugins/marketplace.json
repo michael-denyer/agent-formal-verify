@@ -1,0 +1,23 @@
+{
+  "name": "agent-formal-verify",
+  "interface": {
+    "displayName": "Agent formal verify"
+  },
+  "plugins": [
+    {
+      "name": "agent-formal-verify",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL",
+        "products": [
+          "CODEX"
+        ]
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+#!/bin/bash
+# Copyright (c) 2026 Michael Denyer
+# SPDX-License-Identifier: GPL-3.0-only
+# Shared tool pin and prerequisite checks; sourcing this file downloads nothing.
+TLA_VERSION=v1.7.4
+TLA_SHA256=936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
+JAVA=${JAVA:-java}
+TLC_CACHE=${TLC_CACHE:-$HOME/.cache/tla}
+TLC_JAR=${TLC_JAR:-$TLC_CACHE/tla2tools-$TLA_VERSION.jar}
+
+require_tlc_runtime() {
+  if ! "$JAVA" -version > /dev/null 2>&1; then
+    echo "FAIL $JAVA has no runtime; install a JDK and set JAVA to its java binary"
+    return 1
+  fi
+  command -v python3 > /dev/null || { echo "FAIL python3 is not on PATH; install Python 3"; return 1; }
+}
+
+check_tlc_jar() {
+  local jar=$1 got
+  [ -f "$jar" ] || { echo "FAIL $jar is missing; run bash $HERE/setup.sh tla"; return 1; }
+  if command -v sha256sum > /dev/null; then
+    got=$(sha256sum "$jar") || return 1
+  elif command -v shasum > /dev/null; then
+    got=$(shasum -a 256 "$jar") || return 1
+  else
+    echo "FAIL install sha256sum or shasum to verify TLC"
+    return 1
+  fi
+  got=${got%% *}
+  [ "$got" = "$TLA_SHA256" ] || { echo "FAIL $jar has sha256 $got, want $TLA_SHA256"; return 1; }
+}

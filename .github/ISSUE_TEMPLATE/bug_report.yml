@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a problem with setup, skills or verification runners.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      description: Include the version from your plugin manager or plugin manifest.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Claude Code or Codex version, operating system, and relevant Java or Lean version.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the command or request and a small model or source example. Remove private data.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+      description: Include relevant error output.
+    validations:
+      required: true
