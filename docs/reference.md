@@ -25,11 +25,7 @@ Installing the plugin adds skills and helpers. Run setup to prepare the verifica
 
 The [setup skill](../skills/setup/SKILL.md) prepares a working JDK, Python 3, curl, a SHA256 tool, TLC, elan and Lean. It reuses existing prerequisites and installs missing ones through your package manager or the upstream documented installer, within your installation constraints. It prepares both verification tools and needs no target repository.
 
-Global installations share the TLC cache and elan toolchains across repositories. Setup keeps elan's global default unchanged. See [tool setup](../skills/formal-verify/references/setup.md) for cache locations, version pins, direct helper commands and environment settings.
-
-Each verification invocation selects tools from the repository's current source and models. It reuses prepared tools and fetches missing versions when a Lean pin or plugin tool version changes. Repository changes do not require a manual setup rerun. Models and build outputs belong in the target repository; installed plugin helpers and templates remain read-only.
-
-Low-level runners require prepared tools. CI runs preparation separately before checking models.
+[Tool setup](../skills/formal-verify/references/setup.md) is the reference for everything after that first run: how verification prepares a changed Lean pin or tool version without a setup rerun, what global installations share, where caches live, the version pins, the direct helper commands, environment settings and CI.
 
 ## Plugin updates
 
@@ -49,7 +45,7 @@ codex plugin marketplace upgrade agent-formal-verify
 
 Start a new session to use the refreshed plugin. See [Codex marketplace management](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli).
 
-Tool caches survive plugin updates. Verification prepares changed tool pins when needed. Run setup again if a release introduces a new system prerequisite.
+Tool caches survive plugin updates. Run setup again only if a release introduces a new system prerequisite.
 
 ## Scope and evidence
 
