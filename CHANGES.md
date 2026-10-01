@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.11 - Lean checker works from Lean 4.20.0 and ignores leftover modules
+
+`lean-check.sh` takes the modules to audit from `lake query`, so a `.olean` left in the build directory by a deleted source is no longer audited. The audit skips the compiler's auxiliary declarations, which made every model fail on Lean 4.20.0. The checker supports pins from Lean 4.20.0, the first whose Lake builds a module by its source path, and names that minimum when an older pin fails. CI runs the example on Lean 4.20.0 as well as the template's pin.
+
 ## 0.1.10 - sound Lean audit and clearer agent instructions
 
 `lean-check.sh` audits every declaration of every built module with Lean, so a theorem that rests on a declared axiom, `native_decide` or `sorry` fails even when the model has no `#print axioms` line. It builds every `.lean` file in the project by path, so an unimported module is checked and a file that no Lake library owns fails; a default build skipped both. A project with no declarations fails. A long theorem name no longer causes a false failure. The Lean template drops its `#print axioms` lines.

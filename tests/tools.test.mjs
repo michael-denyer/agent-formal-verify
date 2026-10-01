@@ -276,7 +276,7 @@ function leanFixture(log, { status = 0, audit = audited } = {}) {
   writeFileSync(join(project, "lakefile.toml"), 'name = "model"\n');
   writeFileSync(join(project, "lean-toolchain"), "leanprover/lean4:v4.34.1\n");
   const lib = ".lake/build/lib/lean";
-  for (const file of ["Model.lean", "Model/Sub.lean", `${lib}/Model.olean`, `${lib}/Model/Sub.olean`, ".lake/packages/dep/Dep.lean"]) {
+  for (const file of ["Model.lean", "Model/Sub.lean", `${lib}/Model.olean`, `${lib}/Model/Sub.olean`, `${lib}/Ghost.olean`, ".lake/packages/dep/Dep.lean"]) {
     mkdirSync(join(project, file, ".."), { recursive: true });
     writeFileSync(join(project, file), "");
   }
@@ -284,9 +284,10 @@ function leanFixture(log, { status = 0, audit = audited } = {}) {
     '[ "$4" = "--version" ] && exit 0',
     'if [ "$6" = "env" ]; then echo audit >> "$TASK_TRACE"; grep "^import" "$8"; printf "%s\\n" "$TASK_AUDIT"; exit 0; fi',
     'shift 6; printf "%s\\n" "$@" > "$TASK_BUILT"',
-    `cat "${join(logs, log)}"; exit ${status}`,
+    `[ ${status} -ne 0 ] || for target; do target=\${target#"$TASK_PROJECT/"}; echo "/physical/.lake/build/lib/lean/\${target%.lean:olean}.olean"; done`,
+    `cat "${join(logs, log)}" >&2; exit ${status}`,
   ].join("\n"));
-  return { dir, project, result: run(dir, "lean-check.sh", [project], { TASK_AUDIT: audit, TASK_BUILT: join(dir, "built") }) };
+  return { dir, project, result: run(dir, "lean-check.sh", [project], { TASK_AUDIT: audit, TASK_BUILT: join(dir, "built"), TASK_PROJECT: project }) };
 }
 
 test("the Lean checker prints multi-line search output whole and ignores error text in output", () => {
@@ -318,9 +319,9 @@ test("the Lean checker fails when the audit reports no declarations", () => {
   }
 });
 
-test("the Lean checker builds every project source by path and audits every built module", () => {
+test("the Lean checker builds every project source by path and audits only the modules Lake reports for them", () => {
   const { dir, project, result } = leanFixture("lake-search.log", { audit: "AUDITED 0 declarations" });
-  assert.equal(readFileSync(join(dir, "built"), "utf8"), `${project}/Model.lean\n${project}/Model/Sub.lean\n`);
+  assert.equal(readFileSync(join(dir, "built"), "utf8"), `${project}/Model.lean:olean\n${project}/Model/Sub.lean:olean\n`);
   includes(result.stdout, "import Lean\nimport Model\nimport Model.Sub\nAUDITED 0");
 });
 
@@ -329,6 +330,14 @@ test("the Lean checker explains a source file that no library owns, without audi
   assert.equal(result.status, 1);
   includes(result.stdout, "error: unknown module source path `/model/Scratch/Model.lean`\nno library owns that file");
   assert.equal(existsSync(join(dir, "calls")), false);
+});
+
+test("the Lean checker names the minimum Lean version when the pin's Lake has no path targets", () => {
+  for (const log of ["lake-no-query.log", "lake-no-path-target.log"]) {
+    const { result } = leanFixture(log, { status: 1 });
+    assert.equal(result.status, 1);
+    includes(result.stdout, "leanprover/lean4:v4.34.1 cannot build a module by its source path; pin Lean 4.20.0 or later\n");
+  }
 });
 
 test("the Lean checker fails when Lake fails, without auditing", () => {

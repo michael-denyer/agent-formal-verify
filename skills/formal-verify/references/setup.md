@@ -34,7 +34,7 @@ bash <skill-dir>/scripts/lean-check.sh /path/to/lean-project
 
 The setup helper checks the version in the project's current `lean-toolchain` and installs it only when it is not ready; it leaves the global default unchanged. The Lean checker uses `elan run` without its install flag, so a missing toolchain fails instead of downloading inside the checker. Lake builds may fetch dependencies declared by the model project. The supplied template has no external Lean packages.
 
-The Lean checker builds every `.lean` file in the project by its path, so a file that no Lake library owns fails the build instead of going unchecked. It then compiles a short audit against the built modules. The audit lists every declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, so a model needs no `#print axioms` lines.
+The Lean checker builds every `.lean` file in the project by its path, so a file that no Lake library owns fails the build instead of going unchecked. It then compiles a short audit against the modules Lake reports for those files. The checker needs a pin of Lean 4.20.0 or later, the first whose Lake builds a module by its source path, and says so when an older pin fails. The audit lists every declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, so a model needs no `#print axioms` lines.
 
 ## CI
 

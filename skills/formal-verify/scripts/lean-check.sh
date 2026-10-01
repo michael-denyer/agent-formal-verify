@@ -5,6 +5,8 @@
 # module. Fails when the build fails, a declaration uses sorry or rests on an
 # axiom beyond propext, Classical.choice and Quot.sound, or no Lake library
 # owns a .lean file in the project. Otherwise prints the build output and PASS.
+# Needs a pin of Lean 4.20.0 or later, the first whose Lake builds a module by
+# its source path.
 #
 # Usage: lean-check.sh <lake-project-dir>
 set -uo pipefail
@@ -23,28 +25,29 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 log=$work/build.log
 # Lake builds a module named by its source path and rejects a path that no
-# library owns, so naming every source leaves no file unchecked.
+# library owns, so naming every source leaves no file unchecked. Its query
+# command prints the .olean of each, which names the modules to audit without
+# picking up a module left in the build directory by a deleted source.
 sources=()
 while IFS= read -r src; do sources+=("$src"); done \
   < <(find "$dir" -name '*.lean' -not -path "$dir/.lake/*" -not -name lakefile.lean | sort)
 [ "${#sources[@]}" -gt 0 ] || { echo "FAIL $dir has no .lean file to check"; exit 1; }
-elan run "$toolchain" lake --dir "$dir" build "${sources[@]}" > "$log" 2>&1
+elan run "$toolchain" lake --dir "$dir" query "${sources[@]/%/:olean}" > "$work/oleans" 2> "$log"
 status=$?
 # Lean quotes sorry with backticks or straight quotes depending on the version.
 sorry='^(warning|error): .*: declaration uses .sorry.'
 sorries=$(grep -cE "$sorry" "$log")
 
-# The audit imports every built module and collects the axioms under each of
-# their declarations, so it needs no #print axioms line in the model. Lake
-# writes one .olean per module, under lib/lean or, before that, lib.
-lib=$dir/.lake/build/lib
+# The audit imports those modules and collects the axioms under each of their
+# declarations, so it needs no #print axioms line in the model. It skips the
+# compiler's auxiliary declarations, which older pins store with opaque
+# placeholders that would read as axioms.
 audit_status=0
 : > "$work/audit.out"
 if [ "$status" -eq 0 ]; then
   {
     echo "import Lean"
-    find "$lib" -name '*.olean' | sort \
-      | sed -e "s|^$lib/||" -e 's|^lean/||' -e 's|\.olean$||' -e 's|/|.|g' -e 's|^|import |'
+    sed -e 's|^.*/\.lake/build/lib/lean/||' -e 's|\.olean$||' -e 's|/|.|g' -e 's|^|import |' "$work/oleans"
     cat << 'EOF'
 open Lean Elab Command in
 #eval show CommandElabM Unit from do
@@ -56,6 +59,7 @@ open Lean Elab Command in
   for name in names do
     let some idx := env.getModuleIdxFor? name | continue
     unless modules.contains env.header.moduleNames[idx.toNat]! do continue
+    if ((privateToUserName? name).getD name).isInternal then continue
     audited := audited + 1
     let extra := (← collectAxioms name).filter (!standard.contains ·)
     unless extra.isEmpty do IO.println s!"AXIOMS '{name}' depends on axioms: {extra}"
@@ -75,6 +79,8 @@ if [ "$status" -ne 0 ] || [ "$sorries" -ne 0 ] || [ "$axioms" -ne 0 ] || [ "$aud
   [ "$status" -eq 0 ] || grep -v '^[[:space:]]*$' "$log" | tail -40
   ! grep -q '^error: unknown module source path' "$log" \
     || echo "no library owns that file; import it from a built module or move it out of the project"
+  ! grep -qE "^error: (unknown command 'query'|invalid script spec)" "$log" \
+    || echo "$toolchain cannot build a module by its source path; pin Lean 4.20.0 or later"
   if [ "$audit_status" -ne 0 ]; then
     echo "the axiom audit did not run or found no declarations:"
     grep -v '^[[:space:]]*$' "$work/audit.out" | tail -40

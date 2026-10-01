@@ -34,7 +34,7 @@ rejected bash "$scripts/tlc-matrix.sh" "$work/tla/checks.matrix" window=1 | tee 
 grep -q "Invariant InWindow is violated" "$work/tla.out"
 grep -q "^--- state 2: Claim$" "$work/tla.out"
 
-mkdir "$work/lean"
+mkdir -p "$work/lean/Model"
 cp "$examples/lean-template"/{Model.lean,lakefile.toml,lake-manifest.json,lean-toolchain} "$work/lean/"
 bash "$scripts/lean-check.sh" "$work/lean"
 sed -i.orig 's|if s.next < s.consumed + w then|if s.next ≤ s.consumed + w then|' "$work/lean/Model.lean"
@@ -52,6 +52,24 @@ cp "$work/lean/Model.lean.orig" "$work/lean/Model.lean"
 bash "$scripts/lean-check.sh" "$work/lean"
 touch "$work/lean/Model.lean"
 bash "$scripts/lean-check.sh" "$work/lean"
+
+# A module on a declared axiom fails; once its source is deleted, the .olean it
+# left in the build directory is not audited.
+printf 'axiom ghost : False\ntheorem haunted : (1 : Nat) = 2 := ghost.elim\n' > "$work/lean/Model/Ghost.lean"
+rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
+grep -qF "AXIOMS 'haunted' depends on axioms: #[ghost]" "$work/lean.out"
+rm "$work/lean/Model/Ghost.lean"
+bash "$scripts/lean-check.sh" "$work/lean"
+
+# The oldest supported pin passes the example and rejects a hidden axiom.
+mkdir "$work/lean-min"
+cp "$examples/lean-template"/{Model.lean,lakefile.toml,lake-manifest.json} "$work/lean-min/"
+echo "leanprover/lean4:v4.20.0" > "$work/lean-min/lean-toolchain"
+bash "$scripts/setup.sh" lean "$work/lean-min"
+bash "$scripts/lean-check.sh" "$work/lean-min"
+printf 'axiom cheat : ∀ n : Nat, n < 3\ntheorem bogus : (10 : Nat) < 3 := cheat 10\n' >> "$work/lean-min/Model.lean"
+rejected bash "$scripts/lean-check.sh" "$work/lean-min" | tee "$work/lean.out"
+grep -qF "AXIOMS 'bogus' depends on axioms: #[cheat]" "$work/lean.out"
 
 # An unfinished proof in a file that no library owns, named like a built module.
 mkdir "$work/lean/Scratch"
