@@ -19,7 +19,6 @@
 #   TLC_WORKERS=<n>    TLC worker threads (default auto)
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-supplied_jar=${TLC_JAR:-}
 # shellcheck source=skills/formal-verify/scripts/tlc-tools.sh
 source "$HERE/tlc-tools.sh"
 TLC_WORKERS=${TLC_WORKERS:-auto}
@@ -29,11 +28,7 @@ only=${2:-}
 MATRIX_DIR=$(cd "$(dirname "$matrix")" && pwd)
 
 require_tlc_runtime || exit 1
-if [ -z "$supplied_jar" ]; then
-  check_tlc_jar "$TLC_JAR" || exit 1
-else
-  [ -f "$TLC_JAR" ] || { echo "FAIL supplied TLC_JAR $TLC_JAR does not exist"; exit 1; }
-fi
+tlc_jar_ready || exit 1
 
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
