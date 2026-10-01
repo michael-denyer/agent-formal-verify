@@ -73,8 +73,12 @@ while IFS= read -r line || [ -n "$line" ]; do
   read -r kw rest <<< "$line"
   case $kw in
     spec) spec=$rest; checks="" ;;
-    check) checks="$checks${checks:+$'\n'}$rest" ;;
-    run) label=${rest%%|*}; check_run "${label% }" "${rest#*|}" ;;
+    check)
+      [ -n "$spec" ] || { echo "FAIL check '$rest' before any spec line"; fail=1; continue; }
+      checks="$checks${checks:+$'\n'}$rest" ;;
+    run)
+      [[ $rest == *"|"* ]] || { echo "FAIL run '$rest' has no | before its constants"; fail=1; continue; }
+      label=${rest%%|*}; check_run "${label% }" "${rest#*|}" ;;
     *) echo "FAIL unknown directive: $line"; fail=1 ;;
   esac
 done < "$matrix"

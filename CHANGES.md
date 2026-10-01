@@ -6,6 +6,8 @@ The matrix runner now reduces the trace of an invariant violation or a deadlock;
 
 Each matrix run gets its own directory, so a spec no longer resolves modules left by an earlier spec. A missing spec is reported in one line.
 
+The matrix runner fails a `check` line placed before any `spec` line, which it previously dropped while the run still passed, and a `run` line without a `|`, which it previously turned into a constant named after the label.
+
 `lean-check.sh` prints multi-line `#eval` output whole, no longer counts `error:` text in output as a build error, and fails a theorem that `#print axioms` shows resting on a declared axiom. The Lean template guards its bounded search with `#guard`, so a counter-example fails the build.
 
 Added a TLA+ template beside the Lean one; it replaces `examples/template.matrix`. CI runs both checkers on the examples and on mutated copies.

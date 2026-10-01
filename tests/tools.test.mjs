@@ -233,6 +233,21 @@ test("the matrix runner names the matrix when it has no runs and the filter when
   assert.equal(matrix(["absent"]).stdout, `FAIL no run matching 'absent' in ${join(dir, "checks.matrix")}\n`);
 });
 
+test("the matrix runner fails a check line that no spec would keep", () => {
+  const { matrix } = matrixFixture(["check INVARIANTS Small", "spec a/One.tla", "run n=4 | N=4"]);
+  const result = matrix();
+  assert.equal(result.status, 1);
+  includes(result.stdout, "FAIL check 'INVARIANTS Small' before any spec line");
+});
+
+test("the matrix runner fails a run line without a bar instead of inventing a constant", () => {
+  const { dir, matrix } = matrixFixture(["spec a/One.tla", "run n=4"], 'echo started >> "$TASK_TRACE"');
+  const result = matrix();
+  assert.equal(result.status, 1);
+  includes(result.stdout, "FAIL run 'n=4' has no | before its constants");
+  assert.equal(existsSync(join(dir, "calls")), false);
+});
+
 function leanFixture(log, status = 0) {
   const dir = fixture();
   const project = join(dir, "model");
