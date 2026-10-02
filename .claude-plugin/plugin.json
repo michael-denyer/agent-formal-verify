@@ -1,6 +1,6 @@
 {
   "name": "agent-formal-verify",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Model-check thread protocols with TLA+ and prove sequential invariants with Lean 4.",
   "author": {
     "name": "Michael Denyer",
@@ -9,11 +9,6 @@
   "homepage": "https://github.com/michael-denyer/agent-formal-verify",
   "repository": "https://github.com/michael-denyer/agent-formal-verify",
   "license": "GPL-3.0-only",
-  "icon": "./.claude-plugin/icon.png",
-  "documentationUrl": "https://github.com/michael-denyer/agent-formal-verify/blob/main/docs/reference.md",
-  "supportUrl": "https://github.com/michael-denyer/agent-formal-verify/issues",
-  "privacyPolicyUrl": "https://github.com/michael-denyer/agent-formal-verify/blob/main/README.md#data-handling",
-  "termsOfServiceUrl": "https://github.com/michael-denyer/agent-formal-verify/blob/main/LICENSE",
   "keywords": [
     "agent-formal-verify",
     "tla-plus",
