@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.4 - no listing fields in `plugin.json`
+
+The Claude `plugin.json` no longer carries `icon`, `documentationUrl`, `supportUrl`, `privacyPolicyUrl`, or `termsOfServiceUrl`. Claude Code ignores all five at load time. The Claude plugin directory read the `icon` path as an image the plugin's code could run and held the version for review. `.claude-plugin/icon.png` stays in the repository.
+
 ## 0.2.3 - TLC comes from the user, verified by setup
 
 The plugin no longer carries `tla2tools.jar`. Save the JAR from the TLA+ release pinned in `scripts/tlc-tools.sh` as `~/.cache/tla/tla2tools-v1.7.4.jar`, or point `TLC_JAR` at one. `setup.sh tla` verifies the pinned SHA256, names the release and path when the file is missing, and rejects a file that does not match. `TLC_CACHE` chooses another cache directory. No helper downloads anything.
