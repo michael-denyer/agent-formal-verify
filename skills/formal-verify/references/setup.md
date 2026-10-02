@@ -56,9 +56,9 @@ Install the chosen runtime in the CI environment, run the setup helper, then run
     ref: <pinned-commit>
     path: .formal-verify
 - run: bash .formal-verify/skills/formal-verify/scripts/setup.sh tla
-- run: bash .formal-verify/skills/formal-verify/scripts/tlc-matrix.sh "$PWD/tla/Name.matrix"
-- run: python3 .formal-verify/skills/formal-verify/scripts/mutate.py "$PWD/tla/Name.mutations"
-- run: bash .formal-verify/skills/formal-verify/scripts/setup.sh lean "$PWD/lean"
-- run: bash .formal-verify/skills/formal-verify/scripts/lean-check.sh "$PWD/lean"
-- run: python3 .formal-verify/skills/formal-verify/scripts/mutate.py "$PWD/lean/Model/Name.mutations"
+- run: bash .formal-verify/skills/formal-verify/scripts/tlc-matrix.sh "$GITHUB_WORKSPACE/tla/Name.matrix"
+- run: python3 .formal-verify/skills/formal-verify/scripts/mutate.py "$GITHUB_WORKSPACE/tla/Name.mutations"
+- run: bash .formal-verify/skills/formal-verify/scripts/setup.sh lean "$GITHUB_WORKSPACE/lean"
+- run: bash .formal-verify/skills/formal-verify/scripts/lean-check.sh "$GITHUB_WORKSPACE/lean"
+- run: python3 .formal-verify/skills/formal-verify/scripts/mutate.py "$GITHUB_WORKSPACE/lean/Model/Name.mutations"
 ```
