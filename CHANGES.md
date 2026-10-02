@@ -1,5 +1,11 @@
 # Changes
 
+## 0.2.2 - the TLC JAR ships inside the plugin
+
+The plugin bundles the TLC v1.7.4 release JAR at `skills/formal-verify/vendor/tla2tools.jar` with its MIT license. `setup.sh tla` checks that JAR against the pinned SHA256 and no longer downloads anything, so TLA+ setup needs no curl and no network. The `~/.cache/tla` cache and the `TLC_CACHE` setting are gone; `TLC_JAR` still selects another JAR. Lean setup is unchanged.
+
+The plugin has an icon for the Claude plugin directory.
+
 ## 0.2.1 - reports for readers new to the tools, and briefs read from a file
 
 The formal-verify skill writes its reply, pull requests and documents for a reader who knows the code and has used neither tool. A report leads with what goes wrong in the code, states each property as what it guarantees, and says what a TLC pass, a Lean proof, a bounded search and a detected mutation each mean.
@@ -42,7 +48,7 @@ Each matrix run gets its own directory, so a spec no longer resolves modules lef
 
 The matrix runner fails a `check` line placed before any `spec` line, which it previously dropped while the run still passed, and a `run` line without a `|`, which it previously turned into a constant named after the label.
 
-`lean-check.sh` prints multi-line `#eval` output whole, no longer counts `error:` text in output as a build error, and fails a theorem that `#print axioms` shows resting on a declared axiom. The Lean template guards its bounded search with `#guard`, so a counter-example fails the build.
+`lean-check.sh` prints multi-line #eval output whole, no longer counts `error:` text in output as a build error, and fails a theorem that `#print axioms` shows resting on a declared axiom. The Lean template guards its bounded search with `#guard`, so a counter-example fails the build.
 
 Added a TLA+ template beside the Lean one; it replaces `examples/template.matrix`. CI runs both checkers on the examples and on mutated copies.
 

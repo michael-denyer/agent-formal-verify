@@ -34,13 +34,13 @@ Prepare tools after picking targets and before launching agents. The helpers are
 - When a target needs TLA+, run `bash <skill-dir>/scripts/setup.sh tla`.
 - When a target needs Lean, every Lean model in the repository shares one Lake project. If the repository has none, copy `lakefile.toml`, `lake-manifest.json` and `lean-toolchain` from `<skill-dir>/examples/lean-template/` to `lean/` in the target repository, once. Then run `bash <skill-dir>/scripts/setup.sh lean <absolute-model-project-path>`.
 
-Require a successful exit and a `READY` line from each command. The setup helper reuses ready tools and prepares missing tool versions, so the user does not need to rerun `/agent-formal-verify:setup` when a target or pin changes. Keep the installed skill files read-only and copy templates into the target repository.
+Require a successful exit and a `READY` line from each command. The setup helper reuses ready tools and installs a missing Lean pin, so the user does not need to rerun `/agent-formal-verify:setup` when a target or pin changes. Keep the installed skill files read-only and copy templates into the target repository.
 
 If a system prerequisite such as Java or elan is missing, use the [setup skill](../setup/SKILL.md) to prepare it within the user's installation constraints and existing authorization. Report any prerequisite that cannot be prepared. If `java` on PATH has no runtime, set `JAVA` to a working JDK's `java` binary for the setup helper and the matrix runner.
 
 The helpers:
 
-- The setup helper, [`scripts/setup.sh`](scripts/setup.sh), is the only helper that downloads tools.
+- The setup helper, [`scripts/setup.sh`](scripts/setup.sh), checks the bundled TLC JAR and is the only helper that installs a Lean toolchain.
 - The matrix runner, [`scripts/tlc-matrix.sh`](scripts/tlc-matrix.sh), runs TLC with a matrix of constants and prints one PASS or FAIL per run with its state count, then a SUMMARY line with the totals. A failing run prints its error trace reduced by [`scripts/tlc-trace.py`](scripts/tlc-trace.py) to the variables each step changed. Copy [`examples/tla-template/`](examples/tla-template/BoundedQueue.tla) to start a spec and its matrix.
 - The Lean checker, [`scripts/lean-check.sh`](scripts/lean-check.sh), builds every `.lean` file in the pinned Lake project and audits every declaration of every built module. It fails on a build error, a `sorry`, a declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, or a `.lean` file that no Lake library owns. Given file names after the project, it checks only those files. Copy [`examples/lean-template/Model/BoundedQueue.lean`](examples/lean-template/Model/BoundedQueue.lean) to start a model.
 - The mutation runner, [`scripts/mutate.py`](scripts/mutate.py), takes a model's `<Name>.mutations` file and applies each listed bug to a temporary copy of the model. It prints DETECTED or MISSED per mutation with what failed, UNCOVERED for a TLA+ property that no mutation targets, and a SUMMARY line. Both templates include a mutations file.

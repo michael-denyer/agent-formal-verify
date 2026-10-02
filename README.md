@@ -57,7 +57,7 @@ A passing model establishes its stated properties under its assumptions. Reports
 
 ## Data handling
 
-The plugin has no server or telemetry. The agent sends selected source excerpts, models and results to its model provider. Helpers run locally, and tool preparation downloads pinned versions from upstream release hosts.
+The plugin has no server or telemetry. The agent sends selected source excerpts, models and results to its model provider. Helpers run locally. The TLC model checker ships inside the plugin, and Lean preparation installs the pinned toolchain through elan.
 
 ## Contributing
 
