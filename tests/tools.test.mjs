@@ -43,13 +43,24 @@ function run(dir, script, args = [], extra = {}) {
   });
 }
 
-test("TLC setup finds the bundled JAR matching its pin without contacting a release host", () => {
+test("TLC setup names the release to fetch when the pinned JAR is missing, without downloading it", () => {
   const dir = fixture();
   command(dir, "curl", 'echo download >> "$TASK_TRACE"; exit 99');
-  const result = run(dir, "setup.sh", ["tla"]);
-  assert.equal(result.status, 0);
-  includes(result.stdout, "READY TLC " + join(root, "skills/formal-verify/vendor/tla2tools.jar"));
+  const result = run(dir, "setup.sh", ["tla"], { TLC_CACHE: join(dir, "cache") });
+  assert.equal(result.status, 1);
+  includes(result.stdout, "FAIL " + join(dir, "cache/tla2tools-v1.7.4.jar") + " is missing");
+  includes(result.stdout, "https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4");
   assert.equal(existsSync(join(dir, "calls")), false);
+  assert.equal(existsSync(join(dir, "cache")), false);
+});
+
+test("TLC setup rejects a cached JAR that does not match the pin", () => {
+  const dir = fixture();
+  mkdirSync(join(dir, "cache"));
+  writeFileSync(join(dir, "cache/tla2tools-v1.7.4.jar"), "truncated");
+  const result = run(dir, "setup.sh", ["tla"], { TLC_CACHE: join(dir, "cache") });
+  assert.equal(result.status, 1);
+  includes(result.stdout, "has sha256");
 });
 
 test("TLC verification reports a supplied JAR that does not exist", () => {

@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.3 - TLC comes from the user, verified by setup
+
+The plugin no longer carries `tla2tools.jar`. Save the JAR from the TLA+ release pinned in `scripts/tlc-tools.sh` as `~/.cache/tla/tla2tools-v1.7.4.jar`, or point `TLC_JAR` at one. `setup.sh tla` verifies the pinned SHA256, names the release and path when the file is missing, and rejects a file that does not match. `TLC_CACHE` chooses another cache directory. No helper downloads anything.
+
 ## 0.2.2 - the TLC JAR ships inside the plugin
 
 The plugin bundles the TLC v1.7.4 release JAR at `skills/formal-verify/vendor/tla2tools.jar` with its MIT license. `setup.sh tla` checks that JAR against the pinned SHA256 and no longer downloads anything, so TLA+ setup needs no curl and no network. The `~/.cache/tla` cache and the `TLC_CACHE` setting are gone; `TLC_JAR` still selects another JAR. Lean setup is unchanged.
