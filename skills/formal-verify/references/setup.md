@@ -12,7 +12,7 @@ Stay in the target repository and run each helper with `bash` and its absolute p
 
 ## TLA+ and TLC
 
-The setup helper needs a JDK, Python 3, and `sha256sum` or `shasum` to verify the bundled TLC JAR. If `java` on PATH has no runtime, as with the macOS stub, set `JAVA` to a working JDK's `java` binary. Copy the [TLA+ template](../examples/tla-template/BoundedQueue.tla) with its `BoundedQueue.matrix` and `BoundedQueue.mutations` into the project to start a spec.
+The setup helper needs a JDK, Python 3, and `sha256sum` or `shasum` to verify the TLC JAR. If `java` on PATH has no runtime, as with the macOS stub, set `JAVA` to a working JDK's `java` binary. Copy the [TLA+ template](../examples/tla-template/BoundedQueue.tla) with its `BoundedQueue.matrix` and `BoundedQueue.mutations` into the project to start a spec.
 
 ```shell
 bash <skill-dir>/scripts/setup.sh tla
@@ -20,7 +20,7 @@ bash <skill-dir>/scripts/tlc-matrix.sh /path/to/models/Name.matrix
 python3 <skill-dir>/scripts/mutate.py /path/to/models/Name.mutations
 ```
 
-The plugin bundles the TLC release JAR as `vendor/tla2tools.jar` in the `formal-verify` skill, with its MIT license beside it. The setup helper checks the JAR against the SHA256 pinned in `scripts/tlc-tools.sh` and downloads nothing. Set `TLC_JAR` to use another JAR; an explicitly supplied JAR is trusted and must already exist.
+The plugin does not download TLC. Save `tla2tools.jar` from the [TLA+ release](https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4) pinned in `scripts/tlc-tools.sh` as `~/.cache/tla/tla2tools-v1.7.4.jar`; the setup helper verifies its pinned SHA256 and names that path and release when the file is missing or does not match. Set `TLC_CACHE` to choose another cache directory. Set `TLC_JAR` to use an existing JAR; an explicitly supplied JAR is trusted and must already exist.
 
 The matrix runner requires the JAR and a working Java runtime. It checks Python 3 before running, so a failing model can always print its reduced trace. It does not download tools. Each run checks the formula its spec names `Spec` and sees only the modules beside that spec. `TLC_WORKERS` controls the TLC worker count.
 
@@ -47,7 +47,7 @@ The mutation runner reads `Name.mutations` beside `Name.lean`. It elaborates eac
 
 The helpers live in this plugin, not in the target repository. In CI, check out `michael-denyer/agent-formal-verify` at a pinned commit into a separate directory and run the helpers from its `skills/formal-verify/scripts/`. Update that pin deliberately, as for any other tool. A repository that vendors the scripts instead must keep their GPL-3.0-only license headers.
 
-Install the chosen runtime in the CI environment, run the setup helper, then run the matrix runner, Lean checker or mutation runner as a separate step. Cache elan's toolchain directory if useful, and keep the version pins with the models. Use the same `TLC_JAR` and `JAVA` settings in setup and verification.
+Install the chosen runtime and the pinned TLC JAR in the CI environment, run the setup helper, then run the matrix runner, Lean checker or mutation runner as a separate step. Cache elan's toolchain directory if useful, and keep the version pins with the models. Use the same `TLC_JAR` and `JAVA` settings in setup and verification.
 
 ```yaml
 - uses: actions/checkout@<commit>

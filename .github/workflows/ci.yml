@@ -50,6 +50,12 @@ jobs:
           auto-config: false
           use-github-cache: false
           lake-package-directory: skills/formal-verify/examples/lean-template
+      - name: Fetch the pinned TLC release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$HOME/.cache/tla"
+          gh release download v1.7.4 --repo tlaplus/tlaplus --pattern tla2tools.jar --output "$HOME/.cache/tla/tla2tools-v1.7.4.jar"
       - name: Check the examples and their mutations with TLC and Lean
         run: bash tests/models.sh
 
