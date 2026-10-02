@@ -32,8 +32,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: npm install --no-save --prefix "$RUNNER_TEMP/skills-cli" skills@1.5.23
-      - run: '"$RUNNER_TEMP/skills-cli/node_modules/.bin/skills" add ./skills --skill "*" --agent codex --yes --copy'
+      - run: npm ci
+        working-directory: .github/skills-cli
+      - run: .github/skills-cli/node_modules/.bin/skills add ./skills --skill '*' --agent codex --yes --copy
       - run: diff -qr skills .agents/skills
 
   models:
