@@ -12,35 +12,42 @@ Stay in the target repository and run each helper with `bash` and its absolute p
 
 ## TLA+ and TLC
 
-The setup helper needs a JDK, Python 3, curl, and `sha256sum` or `shasum` to verify the download. If `java` on PATH has no runtime, as with the macOS stub, set `JAVA` to a working JDK's `java` binary. Copy the [TLA+ template](../examples/tla-template/BoundedQueue.tla) and its `checks.matrix` into the project to start a spec.
+The setup helper needs a JDK, Python 3, curl, and `sha256sum` or `shasum` to verify the download. If `java` on PATH has no runtime, as with the macOS stub, set `JAVA` to a working JDK's `java` binary. Copy the [TLA+ template](../examples/tla-template/BoundedQueue.tla) with its `BoundedQueue.matrix` and `BoundedQueue.mutations` into the project to start a spec.
 
 ```shell
 bash <skill-dir>/scripts/setup.sh tla
 bash <skill-dir>/scripts/tlc-matrix.sh /path/to/models/Name.matrix
+python3 <skill-dir>/scripts/mutate.py /path/to/models/Name.mutations
 ```
 
 The setup helper downloads the TLC release pinned in `scripts/tlc-tools.sh` from the TLA+ GitHub releases into `~/.cache/tla/`, verifies its pinned SHA256, and publishes the file atomically. Repeat setup reuses a verified download and replaces a cached file that does not match the pin. Parallel setup calls use different temporary files. Set `TLC_CACHE` to choose another cache directory. Set `TLC_JAR` to use an existing JAR; an explicitly supplied JAR is trusted and must already exist.
 
 The matrix runner requires a prepared JAR and a working Java runtime. It checks Python 3 before running, so a failing model can always print its reduced trace. It does not download tools. Each run checks the formula its spec names `Spec` and sees only the modules beside that spec. `TLC_WORKERS` controls the TLC worker count.
 
+The mutation runner reads `Name.mutations` beside `Name.tla` and `Name.matrix`. For each mutation it copies the spec, replaces the listed text, and runs the matrix runner with the one property the mutation names, so it needs the same tools and settings.
+
 ## Lean 4
 
-Install [elan](https://github.com/leanprover/elan#installation) through your normal package manager or its documented installer. Copy the [Lean template](../examples/lean-template/Model.lean) into the project, keeping its `lakefile.toml`, `lake-manifest.json` and pinned `lean-toolchain` file.
+Install [elan](https://github.com/leanprover/elan#installation) through your normal package manager or its documented installer. Copy the Lean template's `lakefile.toml`, `lake-manifest.json` and pinned `lean-toolchain` file into the project once. Each model is one file under `Model/`, started from the [template model](../examples/lean-template/Model/BoundedQueue.lean) and its `BoundedQueue.mutations`.
 
 ```shell
 bash <skill-dir>/scripts/setup.sh lean /path/to/lean-project
 bash <skill-dir>/scripts/lean-check.sh /path/to/lean-project
+bash <skill-dir>/scripts/lean-check.sh /path/to/lean-project Model/Name.lean
+python3 <skill-dir>/scripts/mutate.py /path/to/lean-project/Model/Name.mutations
 ```
 
 The setup helper checks the version in the project's current `lean-toolchain` and installs it only when it is not ready; it leaves the global default unchanged. The Lean checker uses `elan run` without its install flag, so a missing toolchain fails instead of downloading inside the checker. Lake builds may fetch dependencies declared by the model project. The supplied template has no external Lean packages.
 
-The Lean checker builds every `.lean` file in the project by its path, so a file that no Lake library owns fails the build instead of going unchecked. It then compiles a short audit against the modules Lake reports for those files. The checker needs a pin of Lean 4.20.0 or later, the first whose Lake builds a module by its source path, and says so when an older pin fails. The audit lists every declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, so a model needs no `#print axioms` lines.
+The Lean checker builds every `.lean` file in the project by its path, so a file that no Lake library owns fails the build instead of going unchecked. It then compiles a short audit against the modules Lake reports for those files. The checker needs a pin of Lean 4.20.0 or later, the first whose Lake builds a module by its source path, and says so when an older pin fails. The audit lists every declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, so a model needs no `#print axioms` lines. The audit imports the project's modules together, so each model declares its names in a namespace of its own. A file name after the project limits the build and the audit to that file.
+
+The mutation runner reads `Name.mutations` beside `Name.lean`. It elaborates each mutated copy with the project's toolchain and built modules, outside the project, and does not install a toolchain.
 
 ## CI
 
 The helpers live in this plugin, not in the target repository. In CI, check out `michael-denyer/agent-formal-verify` at a pinned commit into a separate directory and run the helpers from its `skills/formal-verify/scripts/`. Update that pin deliberately, as for any other tool. A repository that vendors the scripts instead must keep their GPL-3.0-only license headers.
 
-Install the chosen runtime in the CI environment, run the setup helper, then run the matrix runner or Lean checker as a separate step. Cache `TLC_CACHE` or elan's toolchain directory if useful, and keep the version pins with the models. Use the same JAR path, cache directory and `JAVA` setting in setup and verification.
+Install the chosen runtime in the CI environment, run the setup helper, then run the matrix runner, Lean checker or mutation runner as a separate step. Cache `TLC_CACHE` or elan's toolchain directory if useful, and keep the version pins with the models. Use the same JAR path, cache directory and `JAVA` setting in setup and verification.
 
 ```yaml
 - uses: actions/checkout@<commit>
@@ -50,6 +57,8 @@ Install the chosen runtime in the CI environment, run the setup helper, then run
     path: .formal-verify
 - run: bash .formal-verify/skills/formal-verify/scripts/setup.sh tla
 - run: bash .formal-verify/skills/formal-verify/scripts/tlc-matrix.sh "$PWD/tla/Name.matrix"
-- run: bash .formal-verify/skills/formal-verify/scripts/setup.sh lean "$PWD/lean/Name"
-- run: bash .formal-verify/skills/formal-verify/scripts/lean-check.sh "$PWD/lean/Name"
+- run: python3 .formal-verify/skills/formal-verify/scripts/mutate.py "$PWD/tla/Name.mutations"
+- run: bash .formal-verify/skills/formal-verify/scripts/setup.sh lean "$PWD/lean"
+- run: bash .formal-verify/skills/formal-verify/scripts/lean-check.sh "$PWD/lean"
+- run: python3 .formal-verify/skills/formal-verify/scripts/mutate.py "$PWD/lean/Model/Name.mutations"
 ```

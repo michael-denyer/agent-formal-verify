@@ -1,7 +1,8 @@
 # Matrix file for tlc-matrix.sh. Copy it beside your spec as <Name>.matrix and
 # edit. Paths are relative to this file. A `spec` line resets the `check`
 # lines; each `run` is one TLC run with the CONSTANTS after the bar. Each spec
-# must name its top-level formula Spec.
+# must name its top-level formula Spec. mutate.py reads the checks and runs of
+# <Name>.matrix for the mutations in <Name>.mutations.
 
 spec BoundedQueue.tla
 check INVARIANTS TypeOK InWindow

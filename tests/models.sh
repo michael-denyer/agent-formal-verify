@@ -1,9 +1,10 @@
 #!/bin/bash
 # Copyright (c) 2026 Michael Denyer
 # SPDX-License-Identifier: GPL-3.0-only
-# Runs the real TLC and Lean checkers on the bundled examples, then on copies
-# with one guard weakened, a hidden axiom or an unowned file, which the
-# checkers must reject. Needs the tools that setup.sh prepares; see
+# Runs the real TLC and Lean checkers and the mutation runner on the bundled
+# examples, then on copies with one guard weakened, a hidden axiom, clashing
+# names, an unowned file or an undetected mutation, which they must reject.
+# Needs the tools that setup.sh prepares; see
 # skills/formal-verify/references/setup.md.
 #
 # Usage: models.sh
@@ -18,7 +19,7 @@ trap 'rm -rf "$work"' EXIT
 rejected() {
   local out
   if out=$("$@"); then
-    echo "FAIL a weakened guard passed: $*"
+    echo "FAIL a check that must fail passed: $*"
     exit 1
   fi
   printf '%s\n' "$out"
@@ -27,44 +28,66 @@ rejected() {
 bash "$scripts/setup.sh" tla
 bash "$scripts/setup.sh" lean "$examples/lean-template"
 
-bash "$scripts/tlc-matrix.sh" "$examples/tla-template/checks.matrix"
+bash "$scripts/tlc-matrix.sh" "$examples/tla-template/BoundedQueue.matrix"
+python3 "$scripts/mutate.py" "$examples/tla-template/BoundedQueue.mutations"
 cp -R "$examples/tla-template" "$work/tla"
 sed -i.orig 's|next < consumed + Window|next <= consumed + Window|' "$work/tla/BoundedQueue.tla"
-rejected bash "$scripts/tlc-matrix.sh" "$work/tla/checks.matrix" window=1 | tee "$work/tla.out"
+rejected bash "$scripts/tlc-matrix.sh" "$work/tla/BoundedQueue.matrix" window=1 | tee "$work/tla.out"
 grep -q "Invariant InWindow is violated" "$work/tla.out"
 grep -q "^--- state 2: Claim$" "$work/tla.out"
 
+# A mutation that no property detects, and a property that no mutation targets.
+printf 'mutation reorder a sum\ndetects InWindow\n- next < consumed + Window\n+ next < Window + consumed\n' > "$work/tla/BoundedQueue.mutations"
+cp "$work/tla/BoundedQueue.tla.orig" "$work/tla/BoundedQueue.tla"
+rejected python3 "$scripts/mutate.py" "$work/tla/BoundedQueue.mutations" | tee "$work/tla.out"
+grep -q "^MISSED reorder a sum$" "$work/tla.out"
+grep -q "^UNCOVERED AllConsumed$" "$work/tla.out"
+
+model=$work/lean/Model/BoundedQueue.lean
 mkdir -p "$work/lean/Model"
-cp "$examples/lean-template"/{Model.lean,lakefile.toml,lake-manifest.json,lean-toolchain} "$work/lean/"
+cp "$examples/lean-template"/{lakefile.toml,lake-manifest.json,lean-toolchain} "$work/lean/"
+cp "$examples/lean-template/Model"/BoundedQueue.* "$work/lean/Model/"
 bash "$scripts/lean-check.sh" "$work/lean"
-sed -i.orig 's|if s.next < s.consumed + w then|if s.next ≤ s.consumed + w then|' "$work/lean/Model.lean"
+python3 "$scripts/mutate.py" "$work/lean/Model/BoundedQueue.mutations"
+sed -i.orig 's|if s.next < s.consumed + w then|if s.next ≤ s.consumed + w then|' "$model"
 rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
 grep -q "did not evaluate to .true." "$work/lean.out"
 
 # A theorem resting on a declared axiom, with no #print axioms line to show it.
-cp "$work/lean/Model.lean.orig" "$work/lean/Model.lean"
-printf 'axiom cheat : ∀ n : Nat, n < 3\ntheorem bogus : (10 : Nat) < 3 := cheat 10\n' >> "$work/lean/Model.lean"
+cp "$model.orig" "$model"
+printf 'axiom cheat : ∀ n : Nat, n < 3\ntheorem bogus : (10 : Nat) < 3 := cheat 10\n' >> "$model"
 rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
 grep -qF "AXIOMS 'bogus' depends on axioms: #[cheat]" "$work/lean.out"
 
 # A source touched after its build still passes.
-cp "$work/lean/Model.lean.orig" "$work/lean/Model.lean"
+cp "$model.orig" "$model"
 bash "$scripts/lean-check.sh" "$work/lean"
-touch "$work/lean/Model.lean"
+touch "$model"
 bash "$scripts/lean-check.sh" "$work/lean"
 
-# A module on a declared axiom fails; once its source is deleted, the .olean it
-# left in the build directory is not audited.
+# A second model shares the project under its own namespace. In the first
+# model's namespace, its names clash with that model's in the audit.
+sed 's|BoundedQueue$|Second|' "$model" > "$work/lean/Model/Second.lean"
+bash "$scripts/lean-check.sh" "$work/lean"
+cp "$model" "$work/lean/Model/Second.lean"
+rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
+grep -q "put each model in a namespace of its own" "$work/lean.out"
+rm "$work/lean/Model/Second.lean"
+
+# A module on a declared axiom fails the project but not a check limited to
+# another file; once its source is deleted, the .olean it left in the build
+# directory is not audited.
 printf 'axiom ghost : False\ntheorem haunted : (1 : Nat) = 2 := ghost.elim\n' > "$work/lean/Model/Ghost.lean"
 rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
 grep -qF "AXIOMS 'haunted' depends on axioms: #[ghost]" "$work/lean.out"
+bash "$scripts/lean-check.sh" "$work/lean" Model/BoundedQueue.lean
 rm "$work/lean/Model/Ghost.lean"
 bash "$scripts/lean-check.sh" "$work/lean"
 
 # An unfinished proof in a file that no library owns, named like a built module.
-mkdir "$work/lean/Scratch"
-echo 'theorem unproved : (10 : Nat) < 3 := sorry' > "$work/lean/Scratch/Model.lean"
+mkdir -p "$work/lean/Scratch/Model"
+echo 'theorem unproved : (10 : Nat) < 3 := sorry' > "$work/lean/Scratch/Model/BoundedQueue.lean"
 rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
-grep -q "unknown module source path .*/Scratch/Model.lean" "$work/lean.out"
+grep -q "unknown module source path .*/Scratch/Model/BoundedQueue.lean" "$work/lean.out"
 
-echo "ok: both examples pass; the weakened guards, a hidden axiom and an unowned file are rejected"
+echo "ok: both examples pass and detect their mutations; the weakened guards, a hidden axiom, clashing names and an unowned file are rejected"

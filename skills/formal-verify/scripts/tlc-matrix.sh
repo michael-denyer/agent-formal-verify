@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Model-checks TLA+ specs with TLC over a matrix of constants read from a
 # matrix file, and prints one PASS or FAIL line per run with its distinct
-# state count. A failing run prints TLC's error and its error trace
-# reduced to the variables each step changed (tlc-trace.py).
+# state count, then a SUMMARY line with the totals. A failing run prints TLC's
+# error and its error trace reduced to the variables each step changed
+# (tlc-trace.py).
 #
 # Matrix file, one directive per line (# starts a comment):
 #   spec <path.tla>             the spec for the runs below, relative to the file;
@@ -34,11 +35,13 @@ OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 fail=0
 run=0
+passed=0
+total=0
 spec=""
 checks=""
 
 check_run() {
-  local label=$1 consts=$2 name dir pairs c
+  local label=$1 consts=$2 name dir pairs c states
   [ -n "$spec" ] || { echo "FAIL run '$label' before any spec line"; fail=1; return; }
   case $label in *"$only"*) ;; *) return ;; esac
   run=$((run + 1))
@@ -59,7 +62,12 @@ check_run() {
       -config "$dir/MC.cfg" "$dir/$name.tla" > "$dir/tlc.log" 2>&1 \
       && grep -q "No error has been found" "$dir/tlc.log"; then
     # Progress lines carry interim counts; the last match is the final one.
-    echo "PASS $name $label $(grep -o '[0-9,]* distinct states found' "$dir/tlc.log" | tail -1)"
+    states=$(grep -o '[0-9,]* distinct states found' "$dir/tlc.log" | tail -1)
+    echo "PASS $name $label $states"
+    passed=$((passed + 1))
+    states=${states%% *}
+    states=${states//,/}
+    total=$((total + ${states:-0}))
   else
     echo "FAIL $name $label: $(grep -m1 "^Error:" "$dir/tlc.log")"
     grep "^Error:" "$dir/tlc.log" | sed -n '2,5p'
@@ -84,5 +92,6 @@ while IFS= read -r line || [ -n "$line" ]; do
   esac
 done < "$matrix"
 
-[ "$run" -gt 0 ] || { echo "FAIL no run ${only:+matching '$only' }in $matrix"; fail=1; }
+[ "$run" -gt 0 ] || { echo "FAIL no run ${only:+matching '$only' }in $matrix"; exit 1; }
+echo "SUMMARY $passed of $run runs passed, $total distinct states in total"
 exit $fail

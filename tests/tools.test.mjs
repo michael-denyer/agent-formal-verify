@@ -30,7 +30,7 @@ function command(dir, name, body) {
   return path;
 }
 function run(dir, script, args = [], extra = {}) {
-  return spawnSync("bash", [join(scripts, script), ...args], {
+  return spawnSync(script.endsWith(".py") ? "python3" : "bash", [join(scripts, script), ...args], {
     encoding: "utf8",
     env: {
       ...process.env,
@@ -223,7 +223,17 @@ test("the matrix runner reports the final state count, not a progress line's", (
     'echo "Model checking completed. No error has been found."',
     'echo "274591352 states generated, 91733851 distinct states found, 0 states left on queue."',
   ].join("\n"));
-  assert.equal(matrix().stdout, "PASS One n=450 91733851 distinct states found\n");
+  assert.equal(matrix().stdout, "PASS One n=450 91733851 distinct states found\nSUMMARY 1 of 1 runs passed, 91733851 distinct states in total\n");
+});
+
+test("the matrix runner totals the passing runs and their state counts", () => {
+  const { matrix } = matrixFixture(
+    ["spec a/One.tla", "run small | N=1", "run large | N=2", "spec a/Gone.tla", "run lost | N=1"],
+    'echo "Model checking completed. No error has been found."; echo "9,000 states generated, 1,204 distinct states found, 0 states left on queue."',
+  );
+  const result = matrix();
+  assert.equal(result.status, 1);
+  includes(result.stdout, "SUMMARY 2 of 3 runs passed, 2408 distinct states in total\n");
 });
 
 test("the matrix runner gives each run only its own spec directory's modules", () => {
@@ -242,7 +252,7 @@ test("the matrix runner reports a missing spec in one line without starting TLC"
   const { dir, matrix } = matrixFixture(["spec a/Gone.tla", "run only | N=1"], 'echo started >> "$TASK_TRACE"');
   const result = matrix();
   assert.equal(result.status, 1);
-  assert.equal(result.stdout, "FAIL Gone only: spec a/Gone.tla not found\n");
+  assert.equal(result.stdout, "FAIL Gone only: spec a/Gone.tla not found\nSUMMARY 0 of 1 runs passed, 0 distinct states in total\n");
   assert.equal(result.stderr, "");
   assert.equal(existsSync(join(dir, "calls")), false);
 });
@@ -269,7 +279,7 @@ test("the matrix runner fails a run line without a bar instead of inventing a co
 });
 
 const audited = "AUDITED 37 declarations";
-function leanFixture(log, { status = 0, audit = audited } = {}) {
+function leanFixture(log, { status = 0, audit = audited, files = [] } = {}) {
   const dir = fixture();
   const project = join(realpathSync(dir), "model");
   mkdirSync(project);
@@ -287,27 +297,27 @@ function leanFixture(log, { status = 0, audit = audited } = {}) {
     `[ ${status} -ne 0 ] || for target; do target=\${target#"$TASK_PROJECT/"}; echo "/physical/.lake/build/lib/lean/\${target%.lean:olean}.olean"; done`,
     `cat "${join(logs, log)}" >&2; exit ${status}`,
   ].join("\n"));
-  return { dir, project, result: run(dir, "lean-check.sh", [project], { TASK_AUDIT: audit, TASK_BUILT: join(dir, "built"), TASK_PROJECT: project }) };
+  return { dir, project, result: run(dir, "lean-check.sh", [project, ...files], { TASK_AUDIT: audit, TASK_BUILT: join(dir, "built"), TASK_PROJECT: project }) };
 }
 
 test("the Lean checker prints multi-line search output whole and ignores error text in output", () => {
   const { result } = leanFixture("lake-search.log");
   assert.equal(result.status, 0);
   includes(result.stdout, " ({ next := 3, consumed := 1 }, { next := 4, consumed := 1 })]\n");
-  includes(result.stdout, "no sorry, no extra axioms, 37 declarations audited\n");
+  includes(result.stdout, "/model: 37 declarations checked, no unfinished proof (sorry), no added axiom\n");
 });
 
 test("the Lean checker fails a build that uses sorry", () => {
   const { result } = leanFixture("lake-sorry.log");
   assert.equal(result.status, 1);
-  includes(result.stdout, "1 sorries");
+  includes(result.stdout, "1 unfinished proofs (sorry)");
   includes(result.stdout, "warning: Model.lean:69:8: declaration uses `sorry`");
 });
 
 test("the Lean checker fails a declaration that the audit finds resting on a declared axiom", () => {
   const { result } = leanFixture("lake-search.log", { audit: "AXIOMS 'bogus' depends on axioms: #[cheat]\n" + audited });
   assert.equal(result.status, 1);
-  includes(result.stdout, "1 declarations on extra axioms");
+  includes(result.stdout, "1 declarations on an added axiom");
   includes(result.stdout, "AXIOMS 'bogus' depends on axioms: #[cheat]\n");
 });
 
@@ -345,4 +355,116 @@ test("the Lean checker fails when Lake fails, without auditing", () => {
   assert.equal(result.status, 1);
   includes(result.stdout, "lake exit 1");
   assert.equal(existsSync(join(dir, "calls")), false);
+});
+
+test("the Lean checker builds and audits only the files it is given, and says so", () => {
+  const { dir, project, result } = leanFixture("lake-search.log", { files: ["Model/Sub.lean"] });
+  assert.equal(result.status, 0);
+  assert.equal(readFileSync(join(dir, "built"), "utf8"), `${project}/Model/Sub.lean:olean\n`);
+  includes(result.stdout, `PASS ${project} (Model/Sub.lean only): 37 declarations checked`);
+  const missing = leanFixture("lake-search.log", { files: ["Model/Gone.lean"] });
+  assert.equal(missing.result.stdout, `FAIL ${missing.project}/Model/Gone.lean does not exist\n`);
+});
+
+function tlaMutations(checks, mutations, log = "tlc-invariant.log") {
+  const dir = fixture();
+  const spec = "---- MODULE One ----\nStep == x' = x + 1\n====\n";
+  writeFileSync(join(dir, "One.tla"), spec);
+  writeFileSync(join(dir, "One.matrix"), ["spec One.tla", ...checks, "run n=4 | N=4", "run n=5 | N=5"].join("\n") + "\n");
+  writeFileSync(join(dir, "One.mutations"), mutations.join("\n") + "\n");
+  writeFileSync(join(dir, "tools.jar"), "user supplied");
+  // TLC fails on a spec that holds BUG, and records the checks it was given.
+  const java = command(dir, "tlc-java", [
+    '[ "$1" = "-version" ] && exit 0',
+    'for last; do :; done',
+    'grep -v CONSTANTS "$(dirname "$last")/MC.cfg" | grep "^[A-Z]" >> "$TASK_TRACE"',
+    'if grep -q BUG "$last"; then cat "$TLC_LOG"; exit 12; fi',
+    'echo "Model checking completed. No error has been found."',
+  ].join("\n"));
+  const result = run(dir, "mutate.py", [join(dir, "One.mutations")], { JAVA: java, TLC_JAR: join(dir, "tools.jar"), TLC_LOG: join(logs, log) });
+  assert.equal(readFileSync(join(dir, "One.tla"), "utf8"), spec);
+  return { dir, result };
+}
+
+test("the mutation runner checks each TLA+ mutation against its one property and leaves the spec unchanged", () => {
+  const { dir, result } = tlaMutations(["check INVARIANTS Small Other", "check PROPERTIES Ends"], [
+    "# a comment",
+    "mutation skip a step",
+    "detects Small",
+    "only n=4",
+    "- x' = x + 1",
+    "+ x' = x + 2 \\* BUG",
+  ]);
+  assert.equal(result.stdout, [
+    "DETECTED skip a step: Small fails in run 'n=4' (Invariant Small is violated)",
+    "UNCOVERED Ends",
+    "UNCOVERED Other",
+    "SUMMARY 1 of 1 mutations detected, 2 properties without a mutation",
+    "",
+  ].join("\n"));
+  assert.equal(result.status, 1);
+  assert.equal(readFileSync(join(dir, "calls"), "utf8"), "SPECIFICATION Spec\nINVARIANTS Small\n");
+});
+
+test("the mutation runner fails a mutation that every run still passes", () => {
+  const { result } = tlaMutations(["check INVARIANTS Small"], ["mutation harmless", "detects Small", "- x + 1", "+ 1 + x"]);
+  assert.equal(result.stdout, "MISSED harmless\nSUMMARY 0 of 1 mutations detected\n");
+  assert.equal(result.status, 1);
+});
+
+test("the mutation runner counts a deadlock as detection by a temporal property, not by an invariant", () => {
+  const stuck = (keyword) => ["mutation never step", `detects ${keyword}`, "- x + 1", "+ x \\* BUG"];
+  const temporal = tlaMutations(["check PROPERTIES Ends"], stuck("Ends"), "tlc-deadlock.log").result;
+  assert.equal(temporal.stdout, "DETECTED never step: Ends fails in run 'n=4' (Deadlock reached)\nSUMMARY 1 of 1 mutations detected\n");
+  assert.equal(temporal.status, 0);
+  const invariant = tlaMutations(["check INVARIANTS Small"], stuck("Small"), "tlc-deadlock.log").result;
+  assert.equal(invariant.status, 1);
+  includes(invariant.stdout, "FAIL mutation 'never step' did not reach a verdict:\nFAIL One n=4: Error: Deadlock reached.");
+  excludes(invariant.stdout, "mutations detected");
+});
+
+test("the mutation runner rejects text that is absent or repeated, and a property the matrix does not check", () => {
+  const cases = [
+    [["mutation gone", "detects Small", "- y + 1", "+ y"], "its - text occurs 0 times"],
+    [["mutation twice", "detects Small", "- x", "+ y"], "its - text occurs 2 times"],
+    [["mutation unchecked", "detects Large", "- x + 1", "+ x"], "detects 'Large', which"],
+    [["detects Small"], "'detects Small' before any mutation line"],
+  ];
+  for (const [mutations, message] of cases) {
+    const { dir, result } = tlaMutations(["check INVARIANTS Small"], mutations);
+    assert.equal(result.status, 1);
+    includes(result.stdout, message);
+    assert.equal(existsSync(join(dir, "calls")), false);
+  }
+});
+
+test("the mutation runner names the Lean declarations that fail on a mutation", () => {
+  const dir = fixture();
+  const project = join(dir, "lean");
+  mkdirSync(join(project, "Model"), { recursive: true });
+  writeFileSync(join(project, "lakefile.toml"), 'name = "model"\n');
+  writeFileSync(join(project, "lean-toolchain"), "leanprover/lean4:v4.34.1\n");
+  const model = "def step (n : Nat) : Nat := n + 1\n\ntheorem step_grows (n : Nat) :\n    n < step n := by\n  simp [step]\n#guard step 1 == 2\n";
+  writeFileSync(join(project, "Model/Step.lean"), model);
+  const mutations = (text) => writeFileSync(join(project, "Model/Step.mutations"), text);
+  // Lean reports an error in the proof and at the guard when the step is gone,
+  // and in the definition when it does not parse.
+  command(dir, "elan", [
+    '[ "$4" = "--version" ] && exit 0',
+    '[ "$5" = "$TASK_PROJECT" ] || exit 9',
+    'if grep -q ":= n +$" "$8"; then echo "$8:1:30: error: unexpected token"; echo "$8:6:0: error: unknown identifier"; exit 1; fi',
+    'grep -q ":= n$" "$8" || exit 0',
+    'echo "/elsewhere/Dep.lean:1:0: error: not this file"; echo "$8:5:2: error: unsolved goals"; echo "$8:6:0: error: The expression did not evaluate to true"; exit 1',
+  ].join("\n"));
+  const check = () => run(dir, "mutate.py", [join(project, "Model/Step.mutations")], { TASK_PROJECT: realpathSync(project) });
+  mutations("mutation no step\n- n + 1\n+ n\n\nmutation same step\n- n + 1\n+ 1 + n\n");
+  const result = check();
+  assert.equal(result.stdout, "DETECTED no step: fails theorem step_grows; #guard step 1 == 2\nMISSED same step\nSUMMARY 1 of 2 mutations detected\n");
+  assert.equal(result.status, 1);
+  mutations("mutation half a step\n- n + 1\n+ n +\n");
+  const broken = check();
+  assert.equal(broken.status, 1);
+  includes(broken.stdout, "FAIL mutation 'half a step' did not reach a verdict:\n");
+  includes(broken.stdout, "error: unexpected token");
+  assert.equal(readFileSync(join(project, "Model/Step.lean"), "utf8"), model);
 });

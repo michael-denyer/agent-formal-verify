@@ -1,0 +1,21 @@
+# Mutations for mutate.py. Each one swaps a piece of BoundedQueue.tla for a
+# plausible bug and names the one property that must fail on it. The text
+# after `- ` must occur exactly once in the spec; `+ ` lines replace it. An
+# optional `only <label-substring>` line limits the matrix runs. Every property
+# the matrix checks needs a mutation.
+
+mutation claim one item past the window
+detects InWindow
+- /\ next < consumed + Window
++ /\ next <= consumed + Window
+
+mutation claim after the last item
+detects TypeOK
+- Claim == /\ next < Items
++ Claim == /\ next <= Items
+
+mutation consume never runs
+detects AllConsumed
+only items=3
+- Consume == /\ consumed < next
++ Consume == /\ consumed < 0

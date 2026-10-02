@@ -5,12 +5,16 @@
 # module. Fails when the build fails, a declaration uses sorry or rests on an
 # axiom beyond propext, Classical.choice and Quot.sound, or no Lake library
 # owns a .lean file in the project. Otherwise prints the build output and PASS.
+# Named files limit the check to those sources, so agents that share a project
+# can each check their own model; a run without them checks the whole project.
 # Needs a pin of Lean 4.20.0 or later, the first whose Lake builds a module by
 # its source path.
 #
-# Usage: lean-check.sh <lake-project-dir>
+# Usage: lean-check.sh <lake-project-dir> [<file.lean> ...]
+#   A file is absolute or relative to the project.
 set -uo pipefail
-dir=${1:?usage: lean-check.sh <lake-project-dir>}
+dir=${1:?usage: lean-check.sh <lake-project-dir> [<file.lean> ...]}
+shift
 HERE=$(cd "$(dirname "$0")" && pwd)
 [ -f "$dir/lakefile.toml" ] || [ -f "$dir/lakefile.lean" ] || { echo "FAIL $dir has no lakefile"; exit 1; }
 dir=$(cd "$dir" && pwd)
@@ -29,9 +33,19 @@ log=$work/build.log
 # command prints the .olean of each, which names the modules to audit without
 # picking up a module left in the build directory by a deleted source.
 sources=()
-while IFS= read -r src; do sources+=("$src"); done \
-  < <(find "$dir" -name '*.lean' -not -path "$dir/.lake/*" -not -name lakefile.lean | sort)
-[ "${#sources[@]}" -gt 0 ] || { echo "FAIL $dir has no .lean file to check"; exit 1; }
+scope=$dir
+if [ "$#" -gt 0 ]; then
+  scope="$dir ($* only)"
+  for src; do
+    [[ $src == /* ]] || src=$dir/$src
+    [ -f "$src" ] || { echo "FAIL $src does not exist"; exit 1; }
+    sources+=("$src")
+  done
+else
+  while IFS= read -r src; do sources+=("$src"); done \
+    < <(find "$dir" -name '*.lean' -not -path "$dir/.lake/*" -not -name lakefile.lean | sort)
+  [ "${#sources[@]}" -gt 0 ] || { echo "FAIL $dir has no .lean file to check"; exit 1; }
+fi
 elan run "$toolchain" lake --dir "$dir" query "${sources[@]/%/:olean}" > "$work/oleans" 2> "$log"
 status=$?
 # Lean quotes sorry with backticks or straight quotes depending on the version.
@@ -73,7 +87,7 @@ fi
 axioms=$(grep -c '^AXIOMS ' "$work/audit.out")
 
 if [ "$status" -ne 0 ] || [ "$sorries" -ne 0 ] || [ "$axioms" -ne 0 ] || [ "$audit_status" -ne 0 ]; then
-  echo "FAIL $dir: $sorries sorries, $axioms declarations on extra axioms, lake exit $status"
+  echo "FAIL $scope: $sorries unfinished proofs (sorry), $axioms declarations on an added axiom, lake exit $status"
   grep -E "$sorry" "$log"
   grep '^AXIOMS ' "$work/audit.out"
   [ "$status" -eq 0 ] || grep -v '^[[:space:]]*$' "$log" | tail -40
@@ -84,9 +98,11 @@ if [ "$status" -ne 0 ] || [ "$sorries" -ne 0 ] || [ "$axioms" -ne 0 ] || [ "$aud
   if [ "$audit_status" -ne 0 ]; then
     echo "the axiom audit did not run or found no declarations:"
     grep -v '^[[:space:]]*$' "$work/audit.out" | tail -40
+    ! grep -q 'environment already contains' "$work/audit.out" \
+      || echo "two modules declare the same name; put each model in a namespace of its own"
   fi
   exit 1
 fi
 # #eval output arrives as info blocks that can span lines.
 grep -v '^[[:space:]]*$' "$log"
-echo "PASS $dir: no sorry, no extra axioms, $(grep '^AUDITED ' "$work/audit.out" | cut -d' ' -f2) declarations audited"
+echo "PASS $scope: $(grep '^AUDITED ' "$work/audit.out" | cut -d' ' -f2) declarations checked, no unfinished proof (sorry), no added axiom"
