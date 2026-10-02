@@ -1,5 +1,13 @@
 # Changes
 
+## 0.2.1 - reports for readers new to the tools, and briefs read from a file
+
+The formal-verify skill writes its reply, pull requests and documents for a reader who knows the code and has used neither tool. A report leads with what goes wrong in the code, states each property as what it guarantees, and says what a TLC pass, a Lean proof, a bounded search and a detected mutation each mean.
+
+The modelling requirements moved from `SKILL.md` to `references/tla-brief.md` and `references/lean-brief.md`. An agent's brief names the file to read, where the skill previously had the requirements copied into every brief. `SKILL.md` is about a fifth shorter.
+
+The briefs tell agents to write each fact once: named variable groups for `UNCHANGED`, one operator for a shared guard, one bounded input list per Lean model, and no mutation switches in a model. The skill gives each result one home and rules out a report file per bug and machine-specific paths in committed commands.
+
 ## 0.2.0 - one Lean project per repository and a mutation runner
 
 Lean models share one Lake project: each target is a file `lean/Model/<Name>.lean` in its own namespace, where each previously copied the whole template to `lean/<Name>/`. The Lean template moved to `examples/lean-template/Model/BoundedQueue.lean`, and its lakefile builds every file under `Model/`. Existing projects with their own layout still check.
