@@ -1,0 +1,11 @@
+# Mutations for mutate.py. Each one swaps a piece of BoundedQueue.lean for a
+# plausible bug. The text after `- ` must occur exactly once in the model;
+# `+ ` lines replace it. mutate.py reports the declarations that fail on each.
+
+mutation claim one item past the window
+-   if s.next < s.consumed + w then
++   if s.next ≤ s.consumed + w then
+
+mutation consume an item that was never claimed
+-   if s.consumed < s.next then
++   if s.consumed ≤ s.next then

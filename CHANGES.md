@@ -1,5 +1,15 @@
 # Changes
 
+## 0.2.0 - one Lean project per repository and a mutation runner
+
+Lean models share one Lake project: each target is a file `lean/Model/<Name>.lean` in its own namespace, where each previously copied the whole template to `lean/<Name>/`. The Lean template moved to `examples/lean-template/Model/BoundedQueue.lean`, and its lakefile builds every file under `Model/`. Existing projects with their own layout still check.
+
+`lean-check.sh` takes file names after the project and then builds and audits only those files, so agents that share a project can each check their own model. It names the cause when two modules declare the same name. Its result lines read `declarations checked, no unfinished proof (sorry), no added axiom`.
+
+Added `mutate.py`. It reads a model's `<Name>.mutations` file, applies each listed bug to a temporary copy, and prints DETECTED or MISSED with what failed. A TLA+ mutation names the one property that must fail; a property that no mutation targets is reported as UNCOVERED. A Lean mutation is reported with the declarations that fail. Specs no longer need a constant or branches for their mutations. Both templates include a mutations file, and the TLA+ template's matrix is now `BoundedQueue.matrix`.
+
+`tlc-matrix.sh` ends with a SUMMARY line that counts the passing runs and totals their distinct states.
+
 ## 0.1.11 - Lean checker works from Lean 4.20.0 and ignores leftover modules
 
 `lean-check.sh` takes the modules to audit from `lake query`, so a `.olean` left in the build directory by a deleted source is no longer audited. The audit skips the compiler's auxiliary declarations, which made every model fail on Lean 4.20.0. The checker supports pins from Lean 4.20.0, the first whose Lake builds a module by its source path, and names that minimum when an older pin fails.

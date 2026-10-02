@@ -4,8 +4,9 @@
 
    The counters of a bounded queue with ordered output: `next` counts claimed
    items, `consumed` counts consumed items, and at most `Window` items may be
-   in flight. It is the same model as ../lean-template/Model.lean. TLC checks
-   it for the instances in checks.matrix; Lean proves it for every size.
+   in flight. It is the same model as ../lean-template/Model/BoundedQueue.lean.
+   TLC checks it for the instances in BoundedQueue.matrix; Lean proves it for
+   every size. BoundedQueue.mutations lists the bugs its properties must detect.
 
    To adapt it, replace the header with the source files and line ranges the
    model follows, give each thread a program counter, and keep the top-level

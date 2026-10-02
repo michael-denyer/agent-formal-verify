@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+# Copyright (c) 2026 Michael Denyer
+# SPDX-License-Identifier: GPL-3.0-only
+"""Check that a model's properties detect the bugs in its mutations file.
+
+Takes <Name>.mutations, which sits beside <Name>.tla and <Name>.matrix or
+beside <Name>.lean in a Lake project. Applies each mutation to a temporary
+copy, so the model in the repository is never changed, and prints one line
+per mutation:
+
+  DETECTED <label>: <what failed>   the mutated model fails as it should
+  MISSED <label>                    the mutated model still passes
+  UNCOVERED <Property>              a TLA+ property no mutation targets
+
+A TLA+ mutation is checked against the one property it names, over the runs
+of the matrix. A Lean mutation is elaborated in the project, the mutated
+module alone, and reported with the theorems, lemmas, examples and #guard
+lines that fail. Exits 1 on a MISSED or UNCOVERED line, or when a mutated
+model fails for another reason, such as a syntax error or a definition that
+no longer compiles.
+
+Mutations file (a line starting with # is a comment):
+  mutation <label>          starts a mutation
+  detects <Property>        TLA+ only: the property that must fail
+  only <label-substring>    TLA+ only, optional: limits the matrix runs
+  - <text>                  a line of the model to replace; the text of
+                            consecutive lines must occur exactly once
+  + <text>                  a line of the replacement; none deletes the text
+
+Usage: mutate.py <Name.mutations>
+  The environment settings of tlc-matrix.sh apply to TLA+ mutations.
+"""
+import re
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass, field
+from functools import partial
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+LEAN_PROPERTY = ("theorem", "lemma", "example", "#guard")
+LEAN_DECLARATION = re.compile(r"^(?:@\[.*?\] |private |protected |noncomputable )*((?:theorem|lemma|def|abbrev|instance|example|structure|inductive)\b(?: [^\s:(\[{]+)?|#guard.*|#eval.*)")
+# Fails the same way as lean-check.sh when the pin is not ready, without installing it.
+LEAN = """source "$1/lean-tools.sh"
+toolchain=$(lean_pin "$2") || { echo "$toolchain"; exit 2; }
+lean_pin_ready "$toolchain" || { echo "FAIL $toolchain is not ready; run bash $1/setup.sh lean $2"; exit 2; }
+elan run "$toolchain" lake --dir "$2" env lean "$3"
+"""
+
+
+@dataclass
+class Mutation:
+    label: str
+    detects: str = ""
+    only: str = ""
+    old: list = field(default_factory=list)
+    new: list = field(default_factory=list)
+
+
+def stop(message):
+    print(f"FAIL {message}")
+    sys.exit(1)
+
+
+def parse(path):
+    mutations = []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip() or line.startswith("#"):
+            continue
+        keyword, _, rest = line.partition(" ")
+        if keyword == "mutation":
+            mutations.append(Mutation(rest.strip()))
+        elif not mutations:
+            stop(f"{path}:{number}: '{line}' before any mutation line")
+        elif keyword in ("detects", "only"):
+            setattr(mutations[-1], keyword, rest.strip())
+        elif keyword in ("-", "+"):
+            (mutations[-1].old if keyword == "-" else mutations[-1].new).append(rest)
+        else:
+            stop(f"{path}:{number}: unknown directive: {line}")
+    if not mutations:
+        stop(f"{path} has no mutation")
+    return mutations
+
+
+def mutated(model, mutation):
+    text, old = model.read_text(encoding="utf-8"), "\n".join(mutation.old)
+    count = text.count(old) if old else 0
+    if count != 1:
+        stop(f"mutation '{mutation.label}': its - text occurs {count} times in {model}, want 1")
+    return text.replace(old, "\n".join(mutation.new))
+
+
+def matrix_of(spec):
+    """Return ({property: its INVARIANTS or PROPERTIES keyword}, [run lines]) for spec."""
+    matrix, kinds, runs, ours = spec.with_suffix(".matrix"), {}, [], False
+    if not matrix.is_file():
+        stop(f"{matrix} is missing; mutations use its checks and runs")
+    for line in matrix.read_text(encoding="utf-8").splitlines():
+        keyword, _, rest = line.split("#")[0].strip().partition(" ")
+        if keyword == "spec":
+            ours = rest.strip() == spec.name
+        elif ours and keyword == "check":
+            kind, *names = rest.split()
+            kinds.update(dict.fromkeys(names, kind))
+        elif ours and keyword == "run":
+            runs.append(f"run {rest}")
+    return kinds, runs
+
+
+def check_tla(spec, kinds, runs, mutation, work):
+    """Return (verdict, detail) from TLC on the mutated spec, checking one property."""
+    kind = kinds.get(mutation.detects) or stop(
+        f"mutation '{mutation.label}': detects '{mutation.detects}', which {spec.with_suffix('.matrix')} does not check")
+    for module in spec.parent.glob("*.tla"):
+        (work / module.name).write_text(module.read_text(encoding="utf-8"), encoding="utf-8")
+    (work / spec.name).write_text(mutated(spec, mutation), encoding="utf-8")
+    matrix = work / spec.with_suffix(".matrix").name
+    matrix.write_text("\n".join([f"spec {spec.name}", f"check {kind} {mutation.detects}", *runs]) + "\n", encoding="utf-8")
+    command = ["bash", str(HERE / "tlc-matrix.sh"), str(matrix), *([mutation.only] if mutation.only else [])]
+    done = subprocess.run(command, capture_output=True, text=True, check=False)
+    if done.returncode == 0:
+        return "MISSED", ""
+    # A deadlock stops the system for good, so it breaks a temporal property but no invariant.
+    signs = ["violated"] + (["Deadlock reached"] if kind.startswith("PROPERT") else [])
+    for line in done.stdout.splitlines():
+        if line.startswith("FAIL ") and any(sign in line for sign in signs):
+            run, _, error = line.removeprefix(f"FAIL {spec.stem} ").partition(": Error: ")
+            return "DETECTED", f"{mutation.detects} fails in run '{run}' ({error.rstrip('.')})"
+    return "ERROR", done.stdout + done.stderr
+
+
+def check_lean(model, project, mutation, work):
+    """Return (verdict, detail) from Lean on the mutated module."""
+    source, copy = mutated(model, mutation), work / model.name
+    copy.write_text(source, encoding="utf-8")
+    done = subprocess.run(["bash", "-c", LEAN, "bash", str(HERE), str(project), str(copy)],
+                          capture_output=True, text=True, check=False)
+    output = done.stdout + done.stderr
+    if done.returncode == 0:
+        return "MISSED", ""
+    lines, failed = source.splitlines(), []
+    for match in re.finditer(rf"^{re.escape(str(copy))}:(\d+):\d+: error", output, re.MULTILINE):
+        for line in reversed(lines[:int(match[1])]):
+            if declaration := LEAN_DECLARATION.match(line):
+                if declaration[1] not in failed:
+                    failed.append(declaration[1])
+                break
+    # A plausible bug still compiles, so only a property may fail on it.
+    if done.returncode == 2 or not failed or not all(name.startswith(LEAN_PROPERTY) for name in failed):
+        return "ERROR", output
+    return "DETECTED", "fails " + "; ".join(failed)
+
+
+def main():
+    if len(sys.argv) != 2:
+        stop("usage: mutate.py <Name.mutations>")
+    path = Path(sys.argv[1]).resolve()
+    mutations = parse(path)
+    spec, model = path.with_suffix(".tla"), path.with_suffix(".lean")
+    if spec.is_file():
+        kinds, runs = matrix_of(spec)
+        check = partial(check_tla, spec, kinds, runs)
+    elif model.is_file():
+        project = next((d for d in model.parents if (d / "lakefile.toml").is_file() or (d / "lakefile.lean").is_file()), None)
+        if project is None:
+            stop(f"{model} is in no Lake project")
+        kinds, check = {}, partial(check_lean, model, project)
+    else:
+        stop(f"no {spec.name} or {model.name} beside {path}")
+
+    detected = 0
+    for mutation in mutations:
+        with tempfile.TemporaryDirectory() as work:
+            verdict, detail = check(mutation, Path(work))
+        if verdict == "ERROR":
+            stop(f"mutation '{mutation.label}' did not reach a verdict:\n{detail.strip()}")
+        detected += verdict == "DETECTED"
+        print(f"{verdict} {mutation.label}" + (f": {detail}" if detail else ""))
+    uncovered = sorted(set(kinds) - {mutation.detects for mutation in mutations})
+    for name in uncovered:
+        print(f"UNCOVERED {name}")
+    print(f"SUMMARY {detected} of {len(mutations)} mutations detected"
+          + (f", {len(uncovered)} properties without a mutation" if uncovered else ""))
+    sys.exit(0 if detected == len(mutations) and not uncovered else 1)
+
+
+if __name__ == "__main__":
+    main()

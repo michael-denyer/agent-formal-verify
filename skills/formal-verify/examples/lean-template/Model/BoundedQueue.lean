@@ -14,7 +14,13 @@ This model checks the counters of a bounded queue with ordered output.
 Name any unfinished proof that uses `sorry`. `lean-check.sh` fails on it, on
 any declaration that rests on a declared axiom, and on a `.lean` file that no
 library in the lakefile owns.
+
+Each model is one file under `Model/` in a namespace named after it, so the
+models of a repository share one Lake project and their names do not clash.
+`BoundedQueue.mutations` lists the bugs this model must detect.
 -/
+
+namespace BoundedQueue
 
 structure State where
   next : Nat
@@ -69,3 +75,5 @@ theorem consume_keeps_invariant (w : Nat) (s t : State) (hs : Invariant w s) (h 
     simp only [Invariant] at *
     omega
   · cases h
+
+end BoundedQueue
