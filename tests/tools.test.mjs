@@ -36,7 +36,6 @@ function run(dir, script, args = [], extra = {}) {
       ...process.env,
       PATH: join(dir, "bin") + ":" + process.env.PATH,
       JAVA: command(dir, "java", "exit 0"),
-      TLC_CACHE: join(dir, "cache"),
       TLC_JAR: "",
       TASK_TRACE: join(dir, "calls"),
       ...extra,
@@ -44,53 +43,31 @@ function run(dir, script, args = [], extra = {}) {
   });
 }
 
-test("TLC verification reports a missing JAR without downloading or creating its cache", () => {
+test("TLC setup finds the bundled JAR matching its pin without contacting a release host", () => {
+  const dir = fixture();
+  command(dir, "curl", 'echo download >> "$TASK_TRACE"; exit 99');
+  const result = run(dir, "setup.sh", ["tla"]);
+  assert.equal(result.status, 0);
+  includes(result.stdout, "READY TLC " + join(root, "skills/formal-verify/vendor/tla2tools.jar"));
+  assert.equal(existsSync(join(dir, "calls")), false);
+});
+
+test("TLC verification reports a supplied JAR that does not exist", () => {
   const dir = fixture();
   const matrix = join(dir, "empty.matrix");
   writeFileSync(matrix, "");
-  command(dir, "curl", 'echo download >> "$TASK_TRACE"; exit 99');
-  const result = run(dir, "tlc-matrix.sh", [matrix]);
+  const result = run(dir, "tlc-matrix.sh", [matrix], { TLC_JAR: join(dir, "absent.jar") });
   assert.equal(result.status, 1);
-  includes(result.stdout, "setup.sh tla");
-  assert.equal(existsSync(join(dir, "calls")), false);
-  assert.equal(existsSync(join(dir, "cache")), false);
+  includes(result.stdout, "does not exist");
 });
 
-test("TLC setup verifies downloads before publishing them and removes failed temporary files", () => {
-  const dir = fixture();
-  command(dir, "curl", [
-    'while [ "$#" -gt 0 ]; do',
-    '  if [ "$1" = "-o" ]; then printf corrupt > "$2"; exit 0; fi',
-    '  shift',
-    'done',
-    'exit 99',
-  ].join("\n"));
-  const result = run(dir, "setup.sh", ["tla"]);
-  assert.equal(result.status, 1);
-  includes(result.stdout, "has sha256");
-  assert.deepEqual(readdirSync(join(dir, "cache")), []);
-});
-
-test("TLC setup downloads again when the cached JAR does not match the pin", () => {
-  const dir = fixture();
-  mkdirSync(join(dir, "cache"));
-  writeFileSync(join(dir, "cache/tla2tools-v1.7.4.jar"), "truncated");
-  command(dir, "curl", 'echo download >> "$TASK_TRACE"; exit 99');
-  const result = run(dir, "setup.sh", ["tla"]);
-  assert.equal(result.status, 99);
-  assert.equal(readFileSync(join(dir, "calls"), "utf8"), "download\n");
-});
-
-test("TLC setup accepts an explicitly supplied local JAR without contacting a release host", () => {
+test("TLC setup accepts an explicitly supplied local JAR", () => {
   const dir = fixture();
   const jar = join(dir, "local tools.jar");
   writeFileSync(jar, "user supplied");
-  command(dir, "curl", 'echo download >> "$TASK_TRACE"; exit 99');
   const result = run(dir, "setup.sh", ["tla"], { TLC_JAR: jar });
   assert.equal(result.status, 0);
   includes(result.stdout, "READY TLC " + jar);
-  assert.equal(existsSync(join(dir, "calls")), false);
-  assert.equal(existsSync(join(dir, "cache")), false);
 });
 
 test("Lean verification refuses an unprepared toolchain without requesting installation", () => {

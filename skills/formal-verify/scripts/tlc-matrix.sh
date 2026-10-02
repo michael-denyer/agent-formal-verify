@@ -14,8 +14,7 @@
 #   run <label> | <Name=Value ...>   one TLC run with those CONSTANTS
 #
 # Usage: tlc-matrix.sh <matrix-file> [label-substring]
-#   TLC_JAR=<path>     use this existing tla2tools.jar
-#   TLC_CACHE=<dir>    where setup placed the jar (default ~/.cache/tla)
+#   TLC_JAR=<path>     use this tla2tools.jar in place of the bundled one
 #   JAVA=<path>        the java binary (default: java on PATH)
 #   TLC_WORKERS=<n>    TLC worker threads (default auto)
 set -uo pipefail

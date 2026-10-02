@@ -51,7 +51,7 @@ def badPairs (w n : Nat) : List (State × State) :=
           | none => none
       else []
 
--- `#eval` prints the counter-examples; `#guard` fails the build while any exist.
+-- `#eval badPairs 2 6` prints the counter-examples; `#guard` fails the build while any exist.
 #eval badPairs 2 6   -- []
 #guard (badPairs 2 6).isEmpty
 
