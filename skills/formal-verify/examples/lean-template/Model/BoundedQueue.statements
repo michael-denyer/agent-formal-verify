@@ -205,6 +205,20 @@
       "type": "∀ (w : Nat), BoundedQueue.Invariant w { next := 0, consumed := 0 }",
       "typeHash": "4b1f7285f830075fb2bcc18109f32754cf395e0c65621d765f0d5164ad92c5c5",
       "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.reachable",
+      "kind": "definition",
+      "type": "Nat → Nat → List BoundedQueue.State",
+      "typeHash": "1b888cc781cb5cb759ba80328d78e9d5fe802b4262f2dd96e56fcd3f39051dd4",
+      "valueHash": "459af6e24a2e05103f5abfdb228d5605251413977a8b547c5fb70f373022771c"
+    },
+    {
+      "name": "BoundedQueue.reachable.match_1",
+      "kind": "definition",
+      "type": "(motive : Nat → Sort u_1) → (x : Nat) → (Unit → motive 0) → ((steps : Nat) → motive steps.succ) → motive x",
+      "typeHash": "762abfa7addd0bd8d4a548d7221baf925cf09a9c172d54d9d49a913a6c7908c2",
+      "valueHash": "77abc13fab290d842c22cc52064b8c6050a8bf3ccf386bf1c35069c35fc13eef"
     }
   ]
 }

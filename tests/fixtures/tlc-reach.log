@@ -1,0 +1,24 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 38 and seed 5781159023379100062 with 1 worker on 18 cores with 14564MB heap and 64MB offheap memory [pid: 20790] (Mac OS X 27.0 aarch64, Homebrew 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /private/tmp/afv-tlc-experiments/Reach.tla
+Parsing file /private/tmp/afv-tlc-experiments/BoundedQueue.tla
+Parsing file /private/var/folders/0m/h9ycnyfj1qn79hwmjhmg05v40000gn/T/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module BoundedQueue
+Semantic processing of module Reach
+Starting... (2026-10-03 14:39:19)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-03 14:39:19.
+Error: Invariant ReachNegated is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ consumed = 0
+/\ next = 0
+
+State 2: <Claim line 22, col 10 to line 25, col 30 of module BoundedQueue>
+/\ consumed = 0
+/\ next = 1
+
+2 states generated, 2 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 2.
+Finished in 00s at (2026-10-03 14:39:19)

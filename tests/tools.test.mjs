@@ -677,3 +677,168 @@ test("frozen statements work with the existing system Python", () => {
   assert.equal(frozen.status, 0, frozen.stdout + frozen.stderr);
   assert.equal(check(["Model.lean"]).status, 0);
 });
+
+const reachJava = [
+  'for last; do :; done',
+  'dir=$(dirname "$last")',
+  'if grep -q "^INVARIANT Reach" "$dir/MC.cfg"; then',
+  '  name=$(sed -n "s/^INVARIANT //p" "$dir/MC.cfg")',
+  '  sed "s/ReachNegated/$name/g" "$TLC_REACH_LOG"',
+  '  exit 12',
+  'fi',
+  'echo "Model checking completed. No error has been found."',
+  'echo "4 distinct states found"',
+].join("\n");
+
+function reachFixture(lines, java = reachJava, log = "tlc-reach.log") {
+  const setup = matrixFixture(lines, java.replaceAll('"$TLC_REACH_LOG"', `"${join(logs, log)}"`));
+  return setup;
+}
+
+test("reach checks report the shortest witness and count separately", () => {
+  const { matrix } = reachFixture(["spec a/One.tla", "reach Full | n=1", "run n=1 | N=1"]);
+  const result = matrix();
+  assert.equal(result.status, 0);
+  includes(result.stdout, "PASS One reach Full n=1: shortest trace 2 states (1 transitions)");
+  includes(result.stdout, "SUMMARY 1 of 1 runs passed, 1 of 1 reach checks passed, 4 distinct states in total");
+});
+
+test("reach checks recognize an initial-state witness", () => {
+  const { matrix } = reachFixture(["spec a/One.tla", "reach Full | n=1", "run n=1 | N=1"], reachJava, "tlc-reach-initial.log");
+  const result = matrix();
+  assert.equal(result.status, 0);
+  includes(result.stdout, "shortest trace 1 states (0 transitions)");
+});
+
+test("an exhaustive reach search without a witness fails", () => {
+  const { matrix } = reachFixture(["spec a/One.tla", "reach Full | n=1", "run n=1 | N=1"], 'echo "Model checking completed. No error has been found."');
+  const result = matrix();
+  assert.equal(result.status, 1);
+  includes(result.stdout, "FAIL One reach Full n=1: the model never reaches this state");
+  includes(result.stdout, "0 of 1 reach checks passed");
+});
+
+test("reach parsing rejects missing spec, operator, separator, or label", () => {
+  for (const directive of ["reach Full | n=1", "spec a/One.tla\nreach Full", "spec a/One.tla\nreach Full |", "spec a/One.tla\nreach | n=1", "spec a/One.tla\nreach Full() | n=1"]) {
+    const { matrix } = reachFixture([directive, "spec a/One.tla", "run n=1 | N=1"]);
+    assert.equal(matrix().status, 1, directive);
+  }
+});
+
+test("reach reports unmatched labels and resets at the next spec", () => {
+  const { matrix } = reachFixture(["spec a/One.tla", "reach Full | absent", "run n=1 | N=1", "spec b/Two.tla", "run absent | N=1"]);
+  const result = matrix();
+  assert.equal(result.status, 1);
+  includes(result.stdout, "reach Full: no run matching 'absent'");
+  excludes(result.stdout, "PASS Two reach");
+});
+
+test("reach chooses the first matching run even when declared after it", () => {
+  const { dir, matrix } = reachFixture(["spec a/One.tla", "run n=1 first | N=1", "run n=1 second | N=2", "reach Full | n=1"],
+    'for last; do :; done\ngrep "N =" "$(dirname "$last")/MC.cfg" >> "$TASK_TRACE"\n' + reachJava);
+  assert.equal(matrix().status, 0);
+  assert.equal(readFileSync(join(dir, "calls"), "utf8"), "  N = 1\n  N = 2\n  N = 1\n");
+  const filtered = matrix(["second"]);
+  assert.equal(filtered.status, 0);
+  excludes(filtered.stdout, "PASS One reach");
+});
+
+test("reach uses one worker and disables deadlock only for witness searches", () => {
+  const { dir, matrix } = reachFixture(["spec a/One.tla", "reach Full | n=1", "run n=1 | N=1"],
+    'printf "%s\\n" "$*" >> "$TASK_TRACE"\n' + reachJava);
+  assert.equal(matrix().status, 0);
+  const calls = readFileSync(join(dir, "calls"), "utf8").trim().split("\n");
+  excludes(calls[0], "-deadlock");
+  includes(calls[1], "-workers 1");
+  includes(calls[1], "-deadlock");
+});
+
+test("reach does not confuse a runtime error with an unreachable state", () => {
+  const { matrix } = reachFixture(["spec a/One.tla", "reach Full | n=1", "run n=1 | N=1"], 'echo "Error: undefined operator Full"; exit 1');
+  const result = matrix();
+  assert.equal(result.status, 1);
+  excludes(result.stdout, "the model never reaches this state");
+  includes(result.stdout, "undefined operator Full");
+});
+
+test("mutation detector validation precedes all tool runs", () => {
+  const { dir, result } = tlaMutations(["check INVARIANTS Small"], ["mutation valid", "detects Small", "- x + 1", "+ 1 + x", "mutation invalid", "detects reach:Missing", "- x + 1", "+ x"]);
+  assert.equal(result.status, 1);
+  assert.equal(existsSync(join(dir, "calls")), false);
+});
+
+test("property mutations ignore reach declarations and reach checks add no property coverage", () => {
+  const { result } = tlaMutations(["check INVARIANTS Small", "reach Full | n=4"], ["mutation skip", "detects Small", "- x + 1", "+ x + 2 \\* BUG"]);
+  assert.equal(result.status, 0);
+  includes(result.stdout, "SUMMARY 1 of 1 mutations detected");
+  excludes(result.stdout, "UNCOVERED reach");
+});
+
+function reachMutation(java) {
+  const dir = fixture();
+  writeFileSync(join(dir, "One.tla"), "---- MODULE One ----\nStep == x + 1\n====\n");
+  writeFileSync(join(dir, "One.matrix"), "spec One.tla\nreach Full | n=4\nrun n=4 | N=4\n");
+  writeFileSync(join(dir, "One.mutations"), "mutation never full\ndetects reach:Full\n- x + 1\n+ x \\* BUG\n");
+  writeFileSync(join(dir, "tools.jar"), "user supplied");
+  return run(dir, "mutate.py", [join(dir, "One.mutations")], {
+    JAVA: command(dir, "tlc-java", '[[ "$*" == *"-help"* ]] && exit 0\n[ "$1" = "-version" ] && exit 0\n' + java),
+    TLC_JAR: join(dir, "tools.jar"),
+  });
+}
+
+test("reach mutations are detected by exhausted reach searches, including stopped models", () => {
+  const result = reachMutation([
+    'for last; do :; done',
+    'if grep -q "^INVARIANT Reach" "$(dirname "$last")/MC.cfg"; then',
+    '  echo "Model checking completed. No error has been found."; exit 0',
+    'fi',
+    'echo "Error: Deadlock reached."; exit 11',
+  ].join("\n"));
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  includes(result.stdout, "DETECTED never full: reach:Full fails in run 'n=4' (the model never reaches this state)");
+});
+
+test("a deadlock alone does not detect a reach mutation", () => {
+  const result = reachMutation('echo "Error: Deadlock reached."; exit 11');
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  includes(result.stdout, "did not reach a verdict");
+  excludes(result.stdout, "DETECTED never full");
+});
+
+test("reach searches do not inherit ordinary checks", () => {
+  const { dir, matrix } = reachFixture(["spec a/One.tla", "check INVARIANTS Small", "check PROPERTIES Ends", "reach Full | n=1", "run n=1 | N=1"],
+    'for last; do :; done\ngrep -E "^(INVARIANT|PROPERT)" "$(dirname "$last")/MC.cfg" >> "$TASK_TRACE"\n' + reachJava);
+  assert.equal(matrix().status, 0);
+  const checks = readFileSync(join(dir, "calls"), "utf8").trim().split("\n");
+  assert.equal(checks.length, 3);
+  assert.equal(checks[0], "INVARIANTS Small");
+  assert.equal(checks[1], "PROPERTIES Ends");
+  assert.match(checks[2], /^INVARIANT Reach[a-f0-9]+Negated$/);
+});
+
+test("a different invariant violation cannot pass a reach check", () => {
+  const { matrix } = reachFixture(["spec a/One.tla", "reach Full | n=1", "run n=1 | N=1"], 'echo "Error: Invariant Other is violated."; echo "State 1: <Init>"; exit 12');
+  const result = matrix();
+  assert.equal(result.status, 1);
+  excludes(result.stdout, "PASS One reach");
+  excludes(result.stdout, "the model never reaches this state");
+});
+
+test("malformed mutation matrix checks fail before running a model", () => {
+  for (const check of ["check", "check INVARIANTS", "check UNKNOWN Small"]) {
+    const { dir, result } = tlaMutations([check], ["mutation one", "detects Small", "- x + 1", "+ x"]);
+    assert.equal(result.status, 1);
+    includes(result.stdout, "malformed check");
+    excludes(result.stderr, "Traceback");
+    assert.equal(existsSync(join(dir, "calls")), false);
+  }
+});
+
+test("the matrix runner rejects empty or unsupported checks", () => {
+  for (const check of ["check", "check INVARIANTS", "check UNKNOWN Small"]) {
+    const { matrix } = matrixFixture(["spec a/One.tla", check, "run n=1 | N=1"]);
+    const result = matrix();
+    assert.equal(result.status, 1);
+    includes(result.stdout, "malformed check");
+  }
+});

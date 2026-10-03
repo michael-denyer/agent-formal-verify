@@ -12,8 +12,8 @@ per mutation:
   MISSED <label>                    the mutated model still passes
   UNCOVERED <Property>              a TLA+ property no mutation targets
 
-A TLA+ mutation is checked against the one property it names, over the runs
-of the matrix. A Lean mutation is elaborated in the project, the mutated
+A TLA+ mutation is checked against the property or reach operator it names,
+using the matrix runs. A Lean mutation is elaborated in the project, the mutated
 module alone, and reported with the theorems, lemmas, examples and #guard
 lines that fail. Exits 1 on a MISSED or UNCOVERED line, or when a mutated
 model fails for another reason, such as a syntax error or a definition that
@@ -22,6 +22,7 @@ no longer compiles.
 Mutations file (a line starting with # is a comment):
   mutation <label>          starts a mutation
   detects <Property>        TLA+ only: the property that must fail
+  detects reach:<Operator>  TLA+ only: the reach check that must fail
   only <label-substring>    TLA+ only, optional: limits the matrix runs
   - <text>                  a line of the model to replace; the text of
                             consecutive lines must occur exactly once
@@ -95,8 +96,8 @@ def mutated(model, mutation):
 
 
 def matrix_of(spec):
-    """Return ({property: its INVARIANTS or PROPERTIES keyword}, [run lines]) for spec."""
-    matrix, kinds, runs, ours = spec.with_suffix(".matrix"), {}, [], False
+    """Return property kinds, reach directives by operator, and run lines for spec."""
+    matrix, kinds, reaches, runs, ours = spec.with_suffix(".matrix"), {}, {}, [], False
     if not matrix.is_file():
         stop(f"{matrix} is missing; mutations use its checks and runs")
     for line in matrix.read_text(encoding="utf-8").splitlines():
@@ -104,28 +105,45 @@ def matrix_of(spec):
         if keyword == "spec":
             ours = rest.strip() == spec.name
         elif ours and keyword == "check":
-            kind, *names = rest.split()
+            parts = rest.split()
+            if len(parts) < 2 or parts[0] not in ("INVARIANT", "INVARIANTS", "PROPERTY", "PROPERTIES"):
+                stop(f"{matrix}: malformed check '{rest}'")
+            kind, *names = parts
             kinds.update(dict.fromkeys(names, kind))
         elif ours and keyword == "run":
             runs.append(f"run {rest}")
-    return kinds, runs
+        elif ours and keyword == "reach":
+            operator, bar, label = rest.partition("|")
+            operator = operator.strip()
+            if not bar or not re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", operator) or not label.strip():
+                stop(f"{matrix}: malformed reach '{rest}'")
+            reaches.setdefault(f"reach:{operator}", []).append(f"reach {rest}")
+    return kinds, reaches, runs
 
 
-def check_tla(spec, kinds, runs, mutation, work):
-    """Return (verdict, detail) from TLC on the mutated spec, checking one property."""
-    kind = kinds.get(mutation.detects) or stop(
-        f"mutation '{mutation.label}': detects '{mutation.detects}', which {spec.with_suffix('.matrix')} does not check")
+def check_tla(spec, kinds, reaches, runs, mutation, work):
+    """Return (verdict, detail) from the mutation's property or reach checks."""
+    kind = kinds.get(mutation.detects, "")
     for module in spec.parent.glob("*.tla"):
         (work / module.name).write_text(module.read_text(encoding="utf-8"), encoding="utf-8")
     (work / spec.name).write_text(mutated(spec, mutation), encoding="utf-8")
     matrix = work / spec.with_suffix(".matrix").name
-    matrix.write_text("\n".join([f"spec {spec.name}", f"check {kind} {mutation.detects}", *runs]) + "\n", encoding="utf-8")
+    checks = reaches.get(mutation.detects, [f"check {kind} {mutation.detects}"])
+    matrix.write_text("\n".join([f"spec {spec.name}", *checks, *runs]) + "\n", encoding="utf-8")
     command = ["bash", str(HERE / "tlc-matrix.sh"), str(matrix), *([mutation.only] if mutation.only else [])]
     done = subprocess.run(command, capture_output=True, text=True, check=False)
     if done.returncode == 3:
         return "UNAVAILABLE", done.stdout + done.stderr
     if done.returncode == 0:
         return "MISSED", ""
+    if mutation.detects in reaches:
+        prefix = f"FAIL {spec.stem} reach {mutation.detects.removeprefix('reach:')} "
+        suffix = ": the model never reaches this state"
+        for line in done.stdout.splitlines():
+            if line.startswith(prefix) and line.endswith(suffix):
+                label = line[len(prefix):-len(suffix)]
+                return "DETECTED", f"{mutation.detects} fails in run '{label}' (the model never reaches this state)"
+        return "ERROR", done.stdout + done.stderr
     # A deadlock stops the system for good, so it breaks a temporal property but no invariant.
     signs = ["violated"] + (["Deadlock reached"] if kind.startswith("PROPERT") else [])
     for line in done.stdout.splitlines():
@@ -166,8 +184,11 @@ def main():
     mutations = parse(path)
     spec, model = path.with_suffix(".tla"), path.with_suffix(".lean")
     if spec.is_file():
-        kinds, runs = matrix_of(spec)
-        check = partial(check_tla, spec, kinds, runs)
+        kinds, reaches, runs = matrix_of(spec)
+        for mutation in mutations:
+            if mutation.detects not in kinds and mutation.detects not in reaches:
+                stop(f"mutation '{mutation.label}': detects '{mutation.detects}', which {spec.with_suffix('.matrix')} does not check")
+        check = partial(check_tla, spec, kinds, reaches, runs)
     elif model.is_file():
         project = next((d for d in model.parents if (d / "lakefile.toml").is_file() or (d / "lakefile.lean").is_file()), None)
         if project is None:

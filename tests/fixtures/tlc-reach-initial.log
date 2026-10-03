@@ -1,0 +1,15 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 121 and seed -6318792194471935731 with 1 worker on 18 cores with 14564MB heap and 64MB offheap memory [pid: 20703] (Mac OS X 27.0 aarch64, Homebrew 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /private/tmp/afv-tlc-experiments/Initial.tla
+Parsing file /private/tmp/afv-tlc-experiments/BoundedQueue.tla
+Parsing file /private/var/folders/0m/h9ycnyfj1qn79hwmjhmg05v40000gn/T/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module BoundedQueue
+Semantic processing of module Initial
+Starting... (2026-10-03 14:39:18)
+Computing initial states...
+Error: Invariant ReachNegated is violated by the initial state:
+/\ consumed = 0
+/\ next = 0
+
+Finished in 00s at (2026-10-03 14:39:18)

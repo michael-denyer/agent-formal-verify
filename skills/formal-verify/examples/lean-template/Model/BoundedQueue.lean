@@ -55,6 +55,14 @@ def badPairs (w n : Nat) : List (State × State) :=
 #eval badPairs 2 6   -- []
 #guard (badPairs 2 6).isEmpty
 
+def reachable (w : Nat) : Nat → List State
+  | 0 => [⟨0, 0⟩]
+  | steps + 1 =>
+    let states := reachable w steps
+    states ++ states.flatMap fun s => [claim w s, consume s].filterMap id
+
+#guard (reachable 2 6).any fun s => s.next == s.consumed + 2
+
 theorem invariant_init (w : Nat) : Invariant w ⟨0, 0⟩ := by
   simp [Invariant]
 
