@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -38,6 +38,7 @@ function run(dir, script, args = [], extra = {}) {
       JAVA: command(dir, "java", "exit 0"),
       TLC_JAR: "",
       TASK_TRACE: join(dir, "calls"),
+      ...(existsSync(join(dir, "kani")) ? { KANI_HOME: join(dir, "kani") } : {}),
       ...extra,
     },
   });
@@ -841,4 +842,319 @@ test("the matrix runner rejects empty or unsupported checks", () => {
     assert.equal(result.status, 1);
     includes(result.stdout, "malformed check");
   }
+});
+
+test("Kani setup rejects a missing verifier without installing it", () => {
+  const dir = kaniBundle();
+  rmSync(join(dir, "kani/kani-0.68.0/bin/kani-driver"));
+  command(dir, "cargo", 'echo auto-install >> "$TASK_TRACE"; exit 99');
+  const result = run(dir, "setup.sh", ["bmc"]);
+  assert.equal(result.status, 3);
+  includes(result.stdout, "UNAVAILABLE");
+  includes(result.stdout, "--version 0.68.0");
+  assert.equal(existsSync(join(dir, "calls")), false);
+});
+
+test("Kani setup accepts the pinned version", () => {
+  const dir = kaniBundle();
+  const result = run(dir, "setup.sh", ["bmc"]);
+  assert.equal(result.status, 0);
+  includes(result.stdout, "READY Kani 0.68.0");
+});
+
+function kaniBundle() {
+  const dir = fixture();
+  for (const path of ["bin/kani-driver", "bin/kani-compiler", "bin/cbmc", "toolchain/bin/rustc", "toolchain/bin/cargo"]) {
+    const file = join(dir, "kani/kani-0.68.0", path);
+    mkdirSync(join(file, ".."), { recursive: true });
+    writeFileSync(file, "#!/bin/sh\nexit 0\n");
+    chmodSync(file, 0o755);
+  }
+  kaniDriver(dir, 'printf "Kani Rust Verifier 0.68.0 (cargo plugin)\\nCBMC 6.11.0\\n"');
+  return dir;
+}
+
+function kaniDriver(dir, body) {
+  const file = join(dir, "kani/kani-0.68.0/bin/kani-driver");
+  writeFileSync(file, "#!/bin/bash\n" + body + "\n");
+  chmodSync(file, 0o755);
+  return file;
+}
+
+function kaniFixture(outcome = "success") {
+  const dir = kaniBundle();
+  writeFileSync(join(dir, "Cargo.toml"), '[package]\nname="fixture"\nversion="0.1.0"\n');
+  const report = JSON.parse(readFileSync(join(logs, `kani-${outcome}.json`), "utf8"));
+  const name = report.verification_results.results[0].harness_id;
+  writeFileSync(join(dir, "report.json"), JSON.stringify(report));
+  kaniDriver(dir, `python3 - "$@" <<'PY'
+import json, os, pathlib, shutil, sys
+args=sys.argv[1:]
+base=pathlib.Path(os.environ['TASK_TRACE']).parent
+with open(os.environ['TASK_TRACE'], 'a') as log: log.write(' '.join(args)+'\\n')
+if args == ['install','--list']:
+ print('kani-verifier v0.68.0:'); sys.exit()
+if args == ['--version']:
+ print('Kani Rust Verifier 0.68.0 (cargo plugin)'); print('CBMC 6.11.0'); sys.exit()
+target=pathlib.Path(args[args.index('--target-dir')+1])
+if 'list' in args:
+ target.mkdir(parents=True,exist_ok=True)
+ pathlib.Path('kani-list.json').write_text(json.dumps({'kani-version':'0.68.0','file-version':'0.1','standard-harnesses':{'src/lib.rs':['${name}']}}))
+ (target/'crate.kani-metadata.json').write_text(json.dumps({'proof_harnesses':[{'pretty_name':'${name}','attributes':{'unwind_value':3}}]}))
+else:
+ shutil.copyfile(base/'report.json',args[args.index('--export-json')+1])
+ print('Concrete playback unit test fixture')
+ sys.exit(1 if '${outcome}' in ['failure','unwind'] else 0)
+PY`);
+  command(dir, "cargo", 'if [ "$1" = install ]; then echo "kani-verifier v0.68.0:"; exit; fi; shift; if [ ! -x "$KANI_HOME/kani-0.68.0/bin/kani-driver" ]; then echo auto-install >> "$TASK_TRACE"; exit 99; fi; exec "$KANI_HOME/kani-0.68.0/bin/kani-driver" "$@"');
+  return { dir, name, report };
+}
+
+test("Kani setup rejects a different verifier version", () => {
+  const dir = kaniBundle();
+  kaniDriver(dir, 'echo "Kani Rust Verifier 0.67.0 (cargo plugin)"');
+  const result = run(dir, "setup.sh", ["bmc"]);
+  assert.equal(result.status, 3);
+  includes(result.stdout, "UNAVAILABLE");
+});
+
+test("Kani reports an unexecutable bundle as unavailable without a traceback", () => {
+  const dir = kaniBundle();
+  writeFileSync(join(dir, "kani/kani-0.68.0/bin/kani-driver"), "invalid executable\n");
+  const result = run(dir, "setup.sh", ["bmc"]);
+  assert.equal(result.status, 3);
+  includes(result.stdout, "UNAVAILABLE Kani 0.68.0 cannot run");
+  excludes(result.stderr, "Traceback");
+});
+
+for (const outcome of ["success", "failure", "unwind", "unsat", "unreachable"]) {
+  test(`Kani ${outcome} has the expected wrapper verdict`, () => {
+    const { dir, name } = kaniFixture(outcome);
+    const result = run(dir, "bmc-check.sh", [dir]);
+    assert.equal(result.status, outcome === "success" ? 0 : 1, result.stdout + result.stderr);
+    includes(result.stdout, `${outcome === "success" ? "PASS" : "FAIL"} ${name} unwind=3 checks=`);
+    includes(result.stdout, `SUMMARY ${outcome === "success" ? 1 : 0} of 1 harnesses passed`);
+    if (outcome === "unwind") includes(result.stdout, "bound too low");
+    if (outcome !== "success") includes(result.stdout, "src/lib.rs:");
+  });
+}
+
+for (const damage of ["unknown status", "wrong version", "wrong harness", "incomplete", "empty checks"]) {
+  test(`Kani rejects ${damage}`, () => {
+    const { dir, report } = kaniFixture();
+    const result = report.verification_results.results[0];
+    if (damage === "unknown status") result.checks[0].status = "Unknown";
+    if (damage === "wrong version") report.metadata.kani_version = "0.1.0";
+    if (damage === "wrong harness") result.harness_id = "other";
+    if (damage === "incomplete") report.verification_results.summary.executed = 0;
+    if (damage === "empty checks") result.checks = [];
+    writeFileSync(join(dir, "report.json"), JSON.stringify(report));
+    const done = run(dir, "bmc-check.sh", [dir]);
+    assert.equal(done.status, 1);
+    excludes(done.stdout, "PASS ");
+    includes(done.stdout, "verification did not complete");
+  });
+}
+
+test("Kani rejects a crate without harnesses", () => {
+  const { dir } = kaniFixture();
+  const driver = join(dir, "kani/kani-0.68.0/bin/kani-driver");
+  writeFileSync(driver, readFileSync(driver, "utf8").replace("'src/lib.rs':['proofs::success']", "'src/lib.rs':[]"));
+  const result = run(dir, "bmc-check.sh", [dir]);
+  assert.equal(result.status, 1);
+  includes(result.stdout, "no proof harnesses");
+  excludes(result.stdout, "SUMMARY");
+});
+
+test("Kani distinguishes malformed projects from unavailable tools", () => {
+  const { dir } = kaniFixture();
+  const result = run(dir, "bmc-check.sh", [join(dir, "missing")]);
+  assert.equal(result.status, 1);
+  includes(result.stdout, "Cargo.toml is missing");
+});
+
+test("Kani does not invoke cargo when its custom bundle is absent or incomplete", () => {
+  const dir = fixture();
+  command(dir, "cargo", 'echo invoked >> "$TASK_TRACE"; exit 99');
+  for (const home of [join(dir, "absent"), join(dir, "incomplete")]) {
+    mkdirSync(home, { recursive: true });
+    const result = run(dir, "setup.sh", ["bmc"], { KANI_HOME: home });
+    assert.equal(result.status, 3);
+    includes(result.stdout, "UNAVAILABLE");
+    assert.equal(existsSync(join(dir, "calls")), false);
+  }
+});
+
+test("Kani refuses an unfinished installer archive before invoking cargo", () => {
+  const dir = kaniBundle();
+  writeFileSync(join(dir, "kani/incomplete.tar.gz"), "archive");
+  command(dir, "cargo", 'echo invoked >> "$TASK_TRACE"; exit 99');
+  const result = run(dir, "setup.sh", ["bmc"]);
+  assert.equal(result.status, 3);
+  includes(result.stdout, "incomplete Kani setup");
+  assert.equal(existsSync(join(dir, "calls")), false);
+});
+
+test("Kani uses the complete pinned bundle without a registered installer", () => {
+  const dir = kaniBundle();
+  command(dir, "cargo", 'echo auto-install >> "$TASK_TRACE"; exit 99');
+  const result = run(dir, "setup.sh", ["bmc"]);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(existsSync(join(dir, "calls")), false);
+});
+
+for (const outcome of ["success", "failure"]) {
+  test(`Rust mutation is ${outcome === "success" ? "missed" : "detected"} by its named harness`, () => {
+    const { dir, name } = kaniFixture(outcome);
+    mkdirSync(join(dir, "src"));
+    writeFileSync(join(dir, "src/lib.rs"), "old guard\n");
+    const mutations = join(dir, "src/lib.mutations");
+    writeFileSync(mutations, `mutation guard\ndetects ${name}\n- old guard\n+ new guard\n`);
+    const result = run(dir, "mutate.py", [mutations]);
+    assert.equal(result.status, outcome === "success" ? 1 : 0, result.stdout + result.stderr);
+    includes(result.stdout, `${outcome === "success" ? "MISSED" : "DETECTED"} guard`);
+    assert.equal(readFileSync(join(dir, "src/lib.rs"), "utf8"), "old guard\n");
+  });
+}
+
+test("a Rust compilation error never counts as a detected mutation", () => {
+  const { dir, name } = kaniFixture("failure");
+  const driver = join(dir, "kani/kani-0.68.0/bin/kani-driver");
+  writeFileSync(driver, readFileSync(driver, "utf8").replace("shutil.copyfile(base/'report.json',args[args.index('--export-json')+1])", "print('error: compilation failed'); sys.exit(1)"));
+  mkdirSync(join(dir, "src"));
+  writeFileSync(join(dir, "src/lib.rs"), "old\n");
+  const mutations = join(dir, "src/lib.mutations");
+  writeFileSync(mutations, `mutation invalid\ndetects ${name}\n- old\n+ invalid\n`);
+  const result = run(dir, "mutate.py", [mutations]);
+  assert.equal(result.status, 1);
+  includes(result.stdout, "did not reach a verdict");
+  excludes(result.stdout, "DETECTED");
+});
+
+test("Kani reports unavailable Python before running a check", () => {
+  const dir = kaniBundle();
+  command(dir, "bash", 'exec /bin/bash "$@"');
+  command(dir, "dirname", 'exec /usr/bin/dirname "$@"');
+  const result = run(dir, "bmc-check.sh", [dir], { PATH: join(dir, "bin") });
+  assert.equal(result.status, 3);
+  includes(result.stdout, "UNAVAILABLE python3");
+  excludes(result.stdout, "SUMMARY");
+});
+
+test("Kani rejects a missing named harness before running verification", () => {
+  const { dir } = kaniFixture();
+  const result = run(dir, "bmc-check.sh", [dir, "missing"]);
+  assert.equal(result.status, 1);
+  includes(result.stdout, "unknown harnesses: missing");
+  excludes(readFileSync(join(dir, "calls"), "utf8"), "--export-json");
+});
+
+test("Kani requires an explicit unwind bound", () => {
+  const { dir } = kaniFixture();
+  const driver = join(dir, "kani/kani-0.68.0/bin/kani-driver");
+  writeFileSync(driver, readFileSync(driver, "utf8").replace("'unwind_value':3", "'unwind_value':None"));
+  const result = run(dir, "bmc-check.sh", [dir]);
+  assert.equal(result.status, 1);
+  includes(result.stdout, "needs #[kani::unwind(N)]");
+});
+
+test("Rust mutation coverage reports harnesses no mutation targets", () => {
+  const { dir, name } = kaniFixture("failure");
+  const driver = join(dir, "kani/kani-0.68.0/bin/kani-driver");
+  writeFileSync(driver, readFileSync(driver, "utf8")
+    .replace(`'src/lib.rs':['${name}']`, `'src/lib.rs':['${name}', 'proofs::other']`)
+    .replace("'attributes':{'unwind_value':3}}]", "'attributes':{'unwind_value':3}}, {'pretty_name':'proofs::other','attributes':{'unwind_value':3}}]"));
+  mkdirSync(join(dir, "src"));
+  writeFileSync(join(dir, "src/lib.rs"), "old\n");
+  const mutations = join(dir, "src/lib.mutations");
+  writeFileSync(mutations, `mutation guard\ndetects ${name}\n- old\n+ new\n`);
+  const result = run(dir, "mutate.py", [mutations]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  includes(result.stdout, "DETECTED guard");
+  includes(result.stdout, "UNCOVERED proofs::other");
+});
+
+test("an insufficient Rust unwind bound never counts as a detected mutation", () => {
+  const { dir, name } = kaniFixture("unwind");
+  mkdirSync(join(dir, "src"));
+  writeFileSync(join(dir, "src/lib.rs"), "old\n");
+  const mutations = join(dir, "src/lib.mutations");
+  writeFileSync(mutations, `mutation loop\ndetects ${name}\n- old\n+ new\n`);
+  const result = run(dir, "mutate.py", [mutations]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  includes(result.stdout, "did not reach a verdict");
+  includes(result.stdout, "bound too low");
+  excludes(result.stdout, "DETECTED");
+});
+
+for (const incomplete of [{ category: "unwind", status: "Failure" }, { category: "assertion", status: "Undetermined" }]) {
+  test(`Rust mutation rejects a counter-example accompanied by ${incomplete.category} ${incomplete.status}`, () => {
+    const { dir, name, report } = kaniFixture("failure");
+    const checks = report.verification_results.results[0].checks;
+    checks.push({ ...checks[0], ...incomplete, id: 2 });
+    writeFileSync(join(dir, "report.json"), JSON.stringify(report));
+    mkdirSync(join(dir, "src"));
+    writeFileSync(join(dir, "src/lib.rs"), "old\n");
+    const mutations = join(dir, "src/lib.mutations");
+    writeFileSync(mutations, `mutation incomplete\ndetects ${name}\n- old\n+ new\n`);
+    const result = run(dir, "mutate.py", [mutations]);
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    includes(result.stdout, "did not reach a verdict");
+    excludes(result.stdout, "DETECTED");
+  });
+}
+
+for (const script of ["bmc-check.sh", "mutate.py"]) {
+  test(`Kani ${script} reports a driver lost after discovery as a failed check`, () => {
+    const { dir, name } = kaniFixture("failure");
+    mkdirSync(join(dir, "src"));
+    writeFileSync(join(dir, "src/lib.rs"), "old\n");
+    const mutations = join(dir, "src/lib.mutations");
+    writeFileSync(mutations, `mutation guard\ndetects ${name}\n- old\n+ new\n`);
+    const driver = join(dir, "kani/kani-0.68.0/bin/kani-driver");
+    writeFileSync(driver, readFileSync(driver, "utf8").replace(" target.mkdir", " (pathlib.Path(os.environ['KANI_HOME'])/'kani-0.68.0/bin/kani-driver').unlink()\n target.mkdir"));
+    const result = run(dir, script, [script === "mutate.py" ? mutations : dir]);
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    includes(result.stdout, "cannot execute Kani");
+    excludes(result.stdout, "DETECTED");
+    excludes(result.stderr, "Traceback");
+  });
+
+  test(`Kani ${script} keeps a relative home valid in temporary work directories`, () => {
+    const { dir, name } = kaniFixture(script === "mutate.py" ? "failure" : "success");
+    mkdirSync(join(dir, "src"));
+    writeFileSync(join(dir, "src/lib.rs"), "old\n");
+    const mutations = join(dir, "src/lib.mutations");
+    writeFileSync(mutations, `mutation guard\ndetects ${name}\n- old\n+ new\n`);
+    const driver = join(dir, "kani/kani-0.68.0/bin/kani-driver");
+    writeFileSync(driver, readFileSync(driver, "utf8").replace("args=sys.argv[1:]", "args=sys.argv[1:]\nassert pathlib.Path(os.environ['KANI_HOME']).resolve() == (pathlib.Path(os.environ['TASK_TRACE']).parent/'kani').resolve()"));
+    const result = run(dir, script, [script === "mutate.py" ? mutations : dir], {
+      KANI_HOME: relative(process.cwd(), join(dir, "kani")),
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr + readFileSync(join(dir, "calls"), "utf8"));
+    excludes(readFileSync(join(dir, "calls"), "utf8"), "auto-install");
+    includes(result.stdout, script === "mutate.py" ? "DETECTED guard" : "SUMMARY 1 of 1 harnesses passed");
+  });
+
+  test(`Kani ${script} bypasses a shadowed auto-installing cargo-kani wrapper`, () => {
+    const { dir, name } = kaniFixture(script === "mutate.py" ? "failure" : "success");
+    command(dir, "cargo-kani", 'echo auto-install >> "$TASK_TRACE"; exit 99');
+    command(dir, "cargo", 'if [ "$1" = install ]; then echo "kani-verifier v0.68.0:"; else cargo-kani "$@"; fi');
+    mkdirSync(join(dir, "src"));
+    writeFileSync(join(dir, "src/lib.rs"), "old\n");
+    const mutations = join(dir, "src/lib.mutations");
+    writeFileSync(mutations, `mutation guard\ndetects ${name}\n- old\n+ new\n`);
+    const result = run(dir, script, [script === "mutate.py" ? mutations : dir]);
+    assert.equal(result.status, 0, result.stdout + result.stderr + readFileSync(join(dir, "calls"), "utf8"));
+    excludes(readFileSync(join(dir, "calls"), "utf8"), "auto-install");
+  });
+}
+
+test("the Rust checker does not treat a crate argument as a readiness command", () => {
+  const dir = kaniBundle();
+  const result = run(dir, "bmc-check.sh", ["--ready"]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  includes(result.stdout, "Cargo.toml is missing");
+  excludes(result.stdout, "READY");
+  excludes(result.stdout, "SUMMARY");
 });

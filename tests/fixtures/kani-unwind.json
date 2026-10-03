@@ -1,0 +1,523 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "timestamp": "2026-10-03T13:55:58.839006Z",
+    "kani_version": "0.68.0",
+    "target": "aarch64-apple-darwin",
+    "build_mode": "release"
+  },
+  "project": {
+    "crate_name": [
+      "kani_experiment"
+    ],
+    "workspace_root": "/tmp/kani-fixture",
+    "output_dir": "/tmp/kani-fixture/target/kani/aarch64-apple-darwin/debug/build/kani-experiment/2c96a4078fd91c15/out"
+  },
+  "tools": {
+    "kani": "0.68.0",
+    "rustc": "rustc 1.100.0-nightly (8925ea358 2026-08-20)",
+    "cbmc": "6.11.0 (cbmc-6.11.0)",
+    "goto_cc": "clang version 21.0.0 (goto-cc 6.11.0 (cbmc-6.11.0))",
+    "goto_instrument": "6.11.0 (cbmc-6.11.0)",
+    "solvers": [
+      {
+        "name": "cadical",
+        "version": null
+      }
+    ]
+  },
+  "harness_metadata": [
+    {
+      "pretty_name": "proofs::unwind",
+      "mangled_name": "_RNvNtCslKp4u7fIIuQ_15kani_experiment6proofs6unwind",
+      "crate_name": "kani_experiment",
+      "source": {
+        "file": "src/lib.rs",
+        "start_line": 47,
+        "end_line": 51
+      },
+      "goto_file": "/tmp/kani-fixture/target/kani/aarch64-apple-darwin/debug/build/kani-experiment/2c96a4078fd91c15/out/kani_experiment-2c96a4078fd91c15__RNvNtCslKp4u7fIIuQ_15kani_experiment6proofs6unwind.symtab.out",
+      "attributes": {
+        "kind": "Proof",
+        "should_panic": false
+      },
+      "contract": {
+        "contracted_function_name": null,
+        "recursion_tracker": null
+      },
+      "has_loop_contracts": false,
+      "is_automatically_generated": false,
+      "is_bounded": false,
+      "is_ctor_based": false
+    }
+  ],
+  "error_details": [
+    {
+      "harness_id": "proofs::unwind",
+      "has_errors": true,
+      "error_type": "verification_failure",
+      "failed_properties_type": "Other",
+      "exit_status": "properties_failed"
+    }
+  ],
+  "property_details": [
+    {
+      "harness_id": "proofs::unwind",
+      "property_details": {
+        "total_properties": 33,
+        "passed": 0,
+        "failed": 1,
+        "unreachable": 0,
+        "undetermined": 32,
+        "solver_error": 0,
+        "satisfied": 0,
+        "unsatisfiable": 0,
+        "covered": 0,
+        "uncovered": 0
+      }
+    }
+  ],
+  "cbmc": [
+    {
+      "harness_id": "proofs::unwind",
+      "cbmc_metadata": {
+        "version": "6.11.0",
+        "os_info": "aarch64 macos unix"
+      },
+      "configuration": {
+        "object_bits": 16,
+        "solver": "cadical"
+      },
+      "cbmc_stats": {
+        "runtime_symex_s": 0.00702842,
+        "size_program_expression": 542,
+        "slicing_removed_assignments": 413,
+        "vccs_generated": 53,
+        "vccs_remaining": 3,
+        "runtime_postprocess_equation_s": 0.000071458,
+        "runtime_convert_ssa_s": 0.000323666,
+        "runtime_post_process_s": 5.542e-6,
+        "runtime_solver_s": 0.000030458,
+        "runtime_decision_procedure_s": 0.000378125
+      }
+    }
+  ],
+  "verification_results": {
+    "summary": {
+      "total_harnesses": 1,
+      "executed": 1,
+      "status": "completed",
+      "successful": 0,
+      "failed": 1,
+      "duration_ms": 15
+    },
+    "results": [
+      {
+        "harness_id": "proofs::unwind",
+        "status": "Failure",
+        "duration_ms": 15,
+        "checks": [
+          {
+            "id": 1,
+            "function": "std::fmt::Arguments::<'_>::from_str",
+            "status": "Undetermined",
+            "description": "attempt to shift left with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+              "line": "820",
+              "column": "38"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 2,
+            "function": "proofs::unwind",
+            "status": "Undetermined",
+            "description": "unreachable code",
+            "location": {
+              "file": "src/lib.rs",
+              "line": "49",
+              "column": "18"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 3,
+            "function": "proofs::unwind",
+            "status": "Undetermined",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "src/lib.rs",
+              "line": "49",
+              "column": "25"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 4,
+            "function": "proofs::unwind",
+            "status": "Undetermined",
+            "description": "assertion failed: sum == 4",
+            "location": {
+              "file": "src/lib.rs",
+              "line": "50",
+              "column": "9"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 5,
+            "function": "std::panic::Location::<'_>::caller",
+            "status": "Undetermined",
+            "description": "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs",
+              "line": "181",
+              "column": "9"
+            },
+            "category": "unsupported_construct"
+          },
+          {
+            "id": 6,
+            "function": "std::hint::unreachable_unchecked",
+            "status": "Undetermined",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/hint.rs",
+              "line": "111",
+              "column": "14"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 7,
+            "function": "core::panicking::panic_nounwind_fmt::runtime",
+            "status": "Undetermined",
+            "description": "call to foreign \"Rust\" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs",
+              "line": "110",
+              "column": "17"
+            },
+            "category": "unsupported_construct"
+          },
+          {
+            "id": 8,
+            "function": "std::option::Option::<i32>::unwrap_unchecked",
+            "status": "Undetermined",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "1127",
+              "column": "15"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 9,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 10,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 11,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 12,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 13,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 14,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 15,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 16,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 17,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 18,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 19,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 20,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt",
+            "status": "Undetermined",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 21,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 22,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 23,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 24,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 25,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 26,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 27,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 28,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 29,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 30,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 31,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 32,
+            "function": "<std::ops::Range<i32> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Undetermined",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 33,
+            "function": "proofs::unwind",
+            "status": "Failure",
+            "description": "unwinding assertion loop 0",
+            "location": {
+              "file": "src/lib.rs",
+              "line": "49",
+              "column": "9"
+            },
+            "category": "unwind"
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "enabled": false
+  }
+}

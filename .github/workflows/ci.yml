@@ -56,7 +56,11 @@ jobs:
         run: |
           mkdir -p "$HOME/.cache/tla"
           gh release download v1.7.4 --repo tlaplus/tlaplus --pattern tla2tools.jar --output "$HOME/.cache/tla/tla2tools-v1.7.4.jar"
-      - name: Check the examples and their mutations with TLC and Lean
+      - name: Install pinned Kani
+        run: |
+          cargo install --locked kani-verifier --version 0.68.0
+          cargo kani setup
+      - name: Check the examples and their mutations with TLC, Lean and Kani
         run: bash tests/models.sh
 
   links:

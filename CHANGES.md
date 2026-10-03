@@ -1,5 +1,11 @@
 # Changes
 
+## 0.3.0 - check bounded Rust functions with Kani
+
+The Rust checker runs Kani 0.68.0 on actual functions through proof harnesses. It reports each harness's unwind bound and check count, rejects failed checks and unsatisfied cover witnesses, and prints generated concrete playback tests when available. Incomplete verification, insufficient unwinding bounds and unsatisfied covers fail. Rust mutations copy the whole crate and require detection by the named harness; compiler errors and incomplete verification do not count as detection.
+
+Setup verifies a separately installed pinned Kani bundle and invokes its verifier driver directly with the bundled toolchain. Verification and mutations use that same absolute installation, so a relative KANI_HOME or a shadowed Cargo wrapper cannot trigger Kani's automatic setup. The dependency-free bounded-queue template, setup instructions, modelling brief and CI demonstrate the Rust path.
+
 ## 0.2.8 - compare models with code and label counter-examples
 
 The Lean template prints boundary and in-range test vectors. The brief requires comparing them with the production function in its native tests before reporting that a proof describes the code, or stating that the comparison was not run. Reports label counter-examples as reproduced, reachable at shipped settings, or model-only. Lean goal and diagnostics tools remain optional.
