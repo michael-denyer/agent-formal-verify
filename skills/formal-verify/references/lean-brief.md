@@ -13,7 +13,7 @@ Every `.lean` file in the project must belong to a library in the lakefile. With
 1. Transcribe the state type and functions with the code's integer widths, rounding, division and order of operations. Use `UInt32` or `Int` with explicit bounds where appropriate, and `Nat` only when values cannot go negative. Keep the source function names and cite `file:line` in doc comments. Preserve any bug during transcription so the model checks the code as written.
 2. State the property as a `Prop` with a `Decidable` instance. It may describe an invariant, an encoder round trip, an index bound or states the machine must never reach.
 3. Write every theorem statement with `sorry` for its proof, then freeze the model with `bash <skill-dir>/scripts/lean-check.sh <absolute-project-path> --freeze Model/<Name>.lean`. This records types and definition bodies even while proofs are unfinished. The FROZEN line confirms the record, not a proof. Added axioms still fail.
-4. Write and evaluate a bounded exhaustive check before proving the theorem. The template's `badPairs` finds states where one step breaks the invariant; `#eval badPairs 2 6` prints concrete counter-examples and `#guard` fails the build while any exist. Set the bound above the code's slot count, batch size, window and other constants so it includes boundary cases.
+4. Write and evaluate a bounded exhaustive check before proving the theorem. The template's `badPairs` finds states where one step breaks the invariant; `#eval badPairs 2 6` prints concrete counter-examples and `#guard` fails the build while any exist. Set the bound above the code's slot count, batch size, window and other constants so it includes boundary cases. Add a `#guard` that a bounded search from the initial state reaches the states the property depends on. The template's `reachable` search requires a full window.
 5. Prove one theorem per step or function for every size. Split on the guards, use `simp only [...]` to expose arithmetic, then use `omega` or `decide` for a finite type. If a proof needs a fact about the real code that the model lacks, state it as a theorem hypothesis and name it in a comment. Do not declare it as an `axiom`. An unfinished proof may use `sorry`, but the Lean checker reports it as a failure. The checker also fails every declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, which also rules out `native_decide`.
 
 ## Keep the model small
@@ -39,11 +39,14 @@ The file name limits the Lean checker to your model, so another agent's unfinish
 
 List plausible bugs in the mutations file, such as `<` instead of `≤`, a missing `+ 1` or a swapped argument. The mutation runner checks each on a copy of the file and names the theorems and `#guard` lines that fail. Expect both the bounded search's `#guard` and the theorem. It rejects a mutation that stops a definition compiling. Revise the properties behind each MISSED line.
 
+Check the reach guard as well as the absence of bad pairs. A search that cannot reach a boundary state does not establish the intended coverage.
+
 ## Report
 
 Report only after reading the output of both commands. If either exits 3 with `UNAVAILABLE`, report "not checked" with the printed remedy; do not claim a pass or a model failure. Give:
 
 - the file paths, both commands, the checker's PASS or FAIL line and the mutation runner's output;
+- the states required by the reach guard and the search bound;
 - for each counter-example, concrete inputs to the code's function, the source line of the failing arithmetic, a unit test with those inputs, whether shipped callers can pass those inputs, and the proposed fix;
 - the `.statements` path and any reason for re-freezing;
 - for a closed proof, its assumptions, including integer widths, bounds and each theorem hypothesis.

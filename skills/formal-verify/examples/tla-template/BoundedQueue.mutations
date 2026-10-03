@@ -19,3 +19,8 @@ detects AllConsumed
 only items=3
 - Consume == /\ consumed < next
 + Consume == /\ consumed < 0
+
+mutation the window never fills
+detects reach:WindowFull
+- /\ next < consumed + Window
++ /\ next < consumed + Window - 1

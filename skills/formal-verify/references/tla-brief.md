@@ -16,6 +16,7 @@ Apply each requirement that fits the protocol, and say in the report which did n
 - When `longjmp`, an exception, a panic or `exit()` can leave a critical section without unlocking, use separate variables for the mutex's actual owner and the lock ownership recorded in the thread's live frames. An unwind can leave these inconsistent and block later acquisitions. Preserve that state so the model can detect the hang. List every allocation and exit call that can run under each lock, including out-of-memory exits.
 - Let the consumer call `next` any number of times, stop calling, or call `close` from any idle point. Include close before the first call, after the last item and after an error. When the producer has a failure path, let it fail at any item through a constant set `FailAt`.
 - Check small instances and boundary cases. Use slot counts of 1, 2 and the shipped count, item counts of 0, 1, 3 and 5, and one, two and three workers.
+- Name a reachable state predicate for each blocking or boundary behaviour the properties depend on, such as a full window, an empty queue, a parked waiter or an injected failure. Add `reach <Operator> | <label-substring>` to its matrix section. It selects the first run whose label contains the substring. A command-line filter skips the reach check if it excludes that selected run.
 - Check `TypeOK`, the ownership partition, delivery order, no delivery after end or error, the documented error-ordering guarantee, and no double free or leak at `closed`. For liveness, check that each blocking call returns, `close` terminates from every allowed calling state, and a run without `close` reaches the end. Require weak fairness on thread steps except consumer choices and spurious wakeups. Add strong fairness on a mutex acquisition only when a counter-example shows pure starvation by a spuriously waking peer. Name that assumption in the spec.
 
 ## Keep the spec small
@@ -46,6 +47,8 @@ python3 <skill-dir>/scripts/mutate.py <absolute-path>/tla/<Name>.mutations
 
 The matrix runner prints PASS or FAIL per run and a SUMMARY line. A failing run prints its error trace, reduced to the variables each step changed.
 
+Each reach check prints its own PASS with the shortest witness length in states and transitions, or FAIL when the model never reaches the state. Reach searches use one worker and ignore deadlock so they can finish exploring a stopped model. The SUMMARY counts reach checks separately; its state total covers ordinary runs only. Use `detects reach:<Operator>` for a mutation that removes a required state. Reach checks do not count as properties for mutation coverage.
+
 Before reporting a pass, list mutations that represent plausible code bugs in the mutations file. Try replacing `while` with `if`, removing a broadcast, replacing FIFO order with stack order, leaving a flag set, or taking an item without removing it. Each mutation names the one property that must fail on it. The mutation runner applies each to a copy of the spec. Revise a property it reports as UNCOVERED, and the property or the mutation behind each MISSED line.
 
 ## Report
@@ -53,6 +56,7 @@ Before reporting a pass, list mutations that represent plausible code bugs in th
 Report only after reading the output of both commands. If either exits 3 with `UNAVAILABLE`, report "not checked" with the printed remedy; do not claim a pass or a model failure. Give:
 
 - the file paths, both commands and their SUMMARY lines;
+- each reach predicate, its selected run and witness length;
 - each FAIL line, with every step of its trace mapped to a code event and `file:line`;
 - for each counter-example, whether the shipped constants and callers can reach it;
 - the real-code constraints the model lacks and the properties it could not express.

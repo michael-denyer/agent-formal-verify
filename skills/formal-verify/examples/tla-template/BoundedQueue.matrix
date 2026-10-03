@@ -7,6 +7,7 @@
 spec BoundedQueue.tla
 check INVARIANTS TypeOK InWindow
 check PROPERTIES AllConsumed
+reach WindowFull | window=1
 # The shipped window, the boundary below it, and an empty input.
 run window=1 items=3 | Window=1 Items=3
 run window=4 items=5 | Window=4 Items=5

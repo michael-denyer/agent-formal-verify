@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.7 - require reachable boundary states
+
+A TLA+ matrix can require a state with `reach <Operator> | <label>`. The checker searches the first matching run and reports the shortest witness, or fails when no state satisfies the predicate. Reach checks have separate summary counts and can detect mutations with `detects reach:<Operator>`. The templates require a full-window state in TLC and Lean so a property cannot pass by avoiding its boundary.
+
 ## 0.2.6 - freeze Lean statements before proving them
 
 `lean-check.sh <project> --freeze [<file.lean> ...]` records each checked source's declaration types and definition values in a `.statements` file beside it. Later checks reject a changed statement, a changed definition or a deleted declaration. Proof changes and added declarations remain allowed. Freeze can record statements whose proofs use `sorry`, but it does not report a proof pass; the final check still rejects unfinished proofs and extra axioms. Fingerprints use SHA256 of structural expressions and belong to the recorded Lean pin. A toolchain change requires review and a fresh freeze.

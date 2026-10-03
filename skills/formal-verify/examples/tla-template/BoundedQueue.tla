@@ -37,5 +37,6 @@ Spec == Init /\ [][Next]_vars /\ WF_vars(Claim) /\ WF_vars(Consume)
 
 TypeOK == next \in 0..Items /\ consumed \in 0..Items
 InWindow == consumed <= next /\ next <= consumed + Window
+WindowFull == next = consumed + Window
 AllConsumed == <>(consumed = Items)
 ====
