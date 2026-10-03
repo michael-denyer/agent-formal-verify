@@ -667,3 +667,13 @@ test("the pinned TLC help command may return 1 after printing its help", () => {
   assert.equal(result.status, 0, result.stdout);
   includes(result.stdout, "READY TLC");
 });
+
+
+test("frozen statements work with the existing system Python", () => {
+  const audit = statementAudit(statement("property"));
+  const { dir, check } = leanFixture("lake-search.log", { audit });
+  command(dir, "python3", '/usr/bin/python3 "$@"');
+  const frozen = check(["--freeze", "Model.lean"]);
+  assert.equal(frozen.status, 0, frozen.stdout + frozen.stderr);
+  assert.equal(check(["Model.lean"]).status, 0);
+});

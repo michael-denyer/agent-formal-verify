@@ -72,7 +72,7 @@ def main():
         raise ValueError("Lake did not return one module per source")
     pending = []
     failed = False
-    for source, olean in zip(sources, paths, strict=True):
+    for source, olean in zip(sources, paths):
         path = Path(source).with_suffix(".statements")
         if mode != "freeze" and not path.exists():
             continue
