@@ -219,6 +219,22 @@ for (const outcome of ["success", "failure"]) {
   });
 }
 
+for (const [label, line, error] of [
+  ["typo", "detects proofs::missing", "unknown harness 'proofs::missing'"],
+  ["limited", "only small", "Rust mutations do not support 'only'"],
+]) {
+  test(`Rust mutation rejects ${label} before verifying any mutation`, () => {
+    const { dir, name } = kaniFixture("failure");
+    const mutations = rustMutation(dir, name);
+    writeFileSync(mutations, readFileSync(mutations, "utf8") + `mutation ${label}\ndetects ${name}\n${line}\n- old\n+ new\n`);
+    const result = runKani(dir, "mutate.py", [mutations]);
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    includes(result.stdout, error);
+    excludes(result.stdout, "DETECTED");
+    excludes(calls(dir), "--export-json");
+  });
+}
+
 test("a Rust compilation error never counts as a detected mutation", () => {
   const { dir, name } = kaniFixture("failure", { compileError: true });
   const mutations = rustMutation(dir, name, "invalid");
