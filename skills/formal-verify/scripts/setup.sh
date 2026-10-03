@@ -13,14 +13,16 @@ case ${1:-} in
     echo "READY TLC $TLC_JAR"
     ;;
   lean)
-    dir=${2:?usage: setup.sh lean <lake-project-dir>}
+    [ "$#" -eq 2 ] || { echo "usage: setup.sh lean <lake-project-dir>"; exit 2; }
+    dir=$2
     # shellcheck source=skills/formal-verify/scripts/lean-tools.sh
     source "$HERE/lean-tools.sh"
-    # On failure the captured output is the FAIL line.
-    toolchain=$(lean_pin "$dir") || { echo "$toolchain"; exit 1; }
+    toolchain=$(lean_pin "$dir") || { status=$?; echo "$toolchain"; exit "$status"; }
     if ! lean_pin_ready "$toolchain"; then
-      elan toolchain install "$toolchain"
-      lean_pin_ready "$toolchain" || { echo "FAIL $toolchain does not run after installation"; exit 1; }
+      install_log=$(elan toolchain install "$toolchain" 2>&1) \
+        || { echo "UNAVAILABLE cannot install $toolchain; run elan toolchain install $toolchain"; echo "$install_log"; exit 3; }
+      lean_pin_ready "$toolchain" || { echo "UNAVAILABLE $toolchain does not run after installation; check elan toolchain list and reinstall it"; echo "$install_log"; exit 3; }
+      [ -z "$install_log" ] || echo "$install_log"
     fi
     echo "READY Lean $toolchain"
     ;;

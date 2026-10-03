@@ -13,17 +13,17 @@
 # Usage: lean-check.sh <lake-project-dir> [<file.lean> ...]
 #   A file is absolute or relative to the project.
 set -uo pipefail
-dir=${1:?usage: lean-check.sh <lake-project-dir> [<file.lean> ...]}
+[ "$#" -gt 0 ] || { echo "usage: lean-check.sh <lake-project-dir> [<file.lean> ...]"; exit 2; }
+dir=$1
 shift
 HERE=$(cd "$(dirname "$0")" && pwd)
 [ -f "$dir/lakefile.toml" ] || [ -f "$dir/lakefile.lean" ] || { echo "FAIL $dir has no lakefile"; exit 1; }
 dir=$(cd "$dir" && pwd)
 # shellcheck source=skills/formal-verify/scripts/lean-tools.sh
 source "$HERE/lean-tools.sh"
-# On failure the captured output is the FAIL line.
-toolchain=$(lean_pin "$dir") || { echo "$toolchain"; exit 1; }
+toolchain=$(lean_pin "$dir") || { status=$?; echo "$toolchain"; exit "$status"; }
 lean_pin_ready "$toolchain" \
-  || { echo "FAIL $toolchain is not ready; run bash $HERE/setup.sh lean $dir"; exit 1; }
+  || { echo "UNAVAILABLE $toolchain is not ready; run bash $HERE/setup.sh lean $dir"; exit 3; }
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

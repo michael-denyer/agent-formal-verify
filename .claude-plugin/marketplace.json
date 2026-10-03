@@ -9,7 +9,7 @@
     {
       "name": "agent-formal-verify",
       "source": "./",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "description": "Model-check thread protocols with TLA+ and prove sequential invariants with Lean 4."
     }
   ]

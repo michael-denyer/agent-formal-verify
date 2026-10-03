@@ -47,8 +47,8 @@ test("TLC setup names the release to fetch when the pinned JAR is missing, witho
   const dir = fixture();
   command(dir, "curl", 'echo download >> "$TASK_TRACE"; exit 99');
   const result = run(dir, "setup.sh", ["tla"], { TLC_CACHE: join(dir, "cache") });
-  assert.equal(result.status, 1);
-  includes(result.stdout, "FAIL " + join(dir, "cache/tla2tools-v1.7.4.jar") + " is missing");
+  assert.equal(result.status, 3);
+  includes(result.stdout, "UNAVAILABLE " + join(dir, "cache/tla2tools-v1.7.4.jar") + " is missing");
   includes(result.stdout, "https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4");
   assert.equal(existsSync(join(dir, "calls")), false);
   assert.equal(existsSync(join(dir, "cache")), false);
@@ -59,7 +59,8 @@ test("TLC setup rejects a cached JAR that does not match the pin", () => {
   mkdirSync(join(dir, "cache"));
   writeFileSync(join(dir, "cache/tla2tools-v1.7.4.jar"), "truncated");
   const result = run(dir, "setup.sh", ["tla"], { TLC_CACHE: join(dir, "cache") });
-  assert.equal(result.status, 1);
+  assert.equal(result.status, 3);
+  includes(result.stdout, "UNAVAILABLE ");
   includes(result.stdout, "has sha256");
 });
 
@@ -68,7 +69,8 @@ test("TLC verification reports a supplied JAR that does not exist", () => {
   const matrix = join(dir, "empty.matrix");
   writeFileSync(matrix, "");
   const result = run(dir, "tlc-matrix.sh", [matrix], { TLC_JAR: join(dir, "absent.jar") });
-  assert.equal(result.status, 1);
+  assert.equal(result.status, 3);
+  includes(result.stdout, "UNAVAILABLE ");
   includes(result.stdout, "does not exist");
 });
 
@@ -89,7 +91,8 @@ test("Lean verification refuses an unprepared toolchain without requesting insta
   writeFileSync(join(project, "lean-toolchain"), "leanprover/lean4:v4.34.1\n");
   command(dir, "elan", 'printf "%s\\n" "$@" >> "$TASK_TRACE"; exit 1');
   const result = run(dir, "lean-check.sh", [project]);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, 3);
+  includes(result.stdout, "UNAVAILABLE ");
   includes(result.stdout, "setup.sh lean");
   const args = readFileSync(join(dir, "calls"), "utf8").trim().split("\n");
   assert.deepEqual(args, ["run", "leanprover/lean4:v4.34.1", "lake", "--version"]);
@@ -131,9 +134,9 @@ test("Lean preparation reports failure when installation does not produce a work
   writeFileSync(join(project, "lean-toolchain"), "leanprover/lean4:v4.34.1\n");
   command(dir, "elan", 'if [ "$1" = "toolchain" ]; then exit 0; fi; exit 1');
   const result = run(dir, "setup.sh", ["lean", project]);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, 3);
   excludes(result.stdout, "READY");
-  includes(result.stdout, "FAIL leanprover/lean4:v4.34.1 does not run after installation");
+  includes(result.stdout, "UNAVAILABLE leanprover/lean4:v4.34.1 does not run after installation");
 });
 
 function reduce(log) {
@@ -189,7 +192,7 @@ function matrixFixture(lines, java) {
   return {
     dir,
     matrix: (args = []) => run(dir, "tlc-matrix.sh", [join(dir, "checks.matrix"), ...args], {
-      JAVA: command(dir, "tlc-java", '[ "$1" = "-version" ] && exit 0\n' + (java ?? passing)),
+      JAVA: command(dir, "tlc-java", '[[ "$*" == *"-help"* ]] && exit 0\n[ "$1" = "-version" ] && exit 0\n' + (java ?? passing)),
       TLC_JAR: join(dir, "tools.jar"),
       TLC_LOG: join(logs, "tlc-invariant.log"),
     }),
@@ -363,7 +366,7 @@ function tlaMutations(checks, mutations, log = "tlc-invariant.log") {
   writeFileSync(join(dir, "tools.jar"), "user supplied");
   // TLC fails on a spec that holds BUG, and records the checks it was given.
   const java = command(dir, "tlc-java", [
-    '[ "$1" = "-version" ] && exit 0',
+    '[[ "$*" == *"-help"* ]] && exit 0\n[ "$1" = "-version" ] && exit 0',
     'for last; do :; done',
     'grep -v CONSTANTS "$(dirname "$last")/MC.cfg" | grep "^[A-Z]" >> "$TASK_TRACE"',
     'if grep -q BUG "$last"; then cat "$TLC_LOG"; exit 12; fi',
@@ -455,4 +458,109 @@ test("the mutation runner names the Lean declarations that fail on a mutation", 
   includes(broken.stdout, "FAIL mutation 'half a step' did not reach a verdict:\n");
   includes(broken.stdout, "error: unexpected token");
   assert.equal(readFileSync(join(project, "Model/Step.lean"), "utf8"), model);
+});
+
+
+test("missing runtimes and hash tools are unavailable with their remedies", () => {
+  const dir = fixture();
+  const jar = join(dir, "tools.jar");
+  writeFileSync(jar, "jar");
+  writeFileSync(join(dir, "lean-toolchain"), "leanprover/lean4:v4.34.1\n");
+  const java = command(dir, "java", "exit 0");
+  const cases = [
+    ["tlc-tools.sh", "require_tlc_runtime", { JAVA: "/absent/java" }, "install a JDK"],
+    ["tlc-tools.sh", "require_tlc_runtime", { JAVA: java }, "install Python 3"],
+    ["tlc-tools.sh", 'check_tlc_jar "$TASK_JAR"', { TASK_JAR: jar }, "install sha256sum or shasum"],
+    ["lean-tools.sh", 'lean_pin "$TASK_PROJECT"', { TASK_PROJECT: dir }, "install elan"],
+  ];
+  for (const [script, call, extra, remedy] of cases) {
+    const result = spawnSync("/bin/bash", ["-c", 'source "$1"; ' + call, "bash", join(scripts, script)], {
+      encoding: "utf8", env: { ...process.env, PATH: join(dir, "bin"), ...extra },
+    });
+    assert.equal(result.status, 3, result.stdout + result.stderr);
+    assert.ok(result.stdout.startsWith("UNAVAILABLE "), result.stdout);
+    includes(result.stdout, remedy);
+    excludes(result.stdout, "PASS");
+    excludes(result.stdout, "SUMMARY");
+  }
+});
+
+test("missing Lean project files stay model failures", () => {
+  const dir = fixture();
+  const result = run(dir, "lean-check.sh", [dir]);
+  assert.equal(result.status, 1);
+  includes(result.stdout, "FAIL " + dir + " has no lakefile");
+  writeFileSync(join(dir, "lakefile.toml"), 'name = "model"\n');
+  command(dir, "elan", "exit 0");
+  const pin = run(dir, "lean-check.sh", [dir]);
+  assert.equal(pin.status, 1);
+  includes(pin.stdout, "FAIL " + dir + " has no lean-toolchain pin");
+});
+
+test("mutation runners preserve unavailable status and never report a missed mutation", () => {
+  for (const language of ["tla", "lean"]) {
+    const dir = fixture();
+    const model = join(dir, "One." + language);
+    writeFileSync(model, "Step = x + 1\n");
+    const path = join(dir, "One.mutations");
+    writeFileSync(path, "mutation skip\n" + (language === "tla" ? "detects Small\n" : "") + "- x + 1\n+ x\n");
+    if (language === "tla") {
+      writeFileSync(join(dir, "One.matrix"), "spec One.tla\ncheck INVARIANTS Small\nrun n=1 | N=1\n");
+    } else {
+      writeFileSync(join(dir, "lakefile.toml"), 'name = "model"\n');
+      writeFileSync(join(dir, "lean-toolchain"), "leanprover/lean4:v4.34.1\n");
+      command(dir, "elan", "exit 1");
+    }
+    const result = run(dir, "mutate.py", [path], { TLC_JAR: join(dir, "absent.jar") });
+    assert.equal(result.status, 3, result.stdout);
+    assert.ok(result.stdout.startsWith("UNAVAILABLE "), result.stdout);
+    excludes(result.stdout, "MISSED");
+    excludes(result.stdout, "SUMMARY");
+  }
+});
+
+test("helper usage errors exit 2", () => {
+  const dir = fixture();
+  for (const [script, args] of [["lean-check.sh", []], ["tlc-matrix.sh", []], ["mutate.py", []], ["setup.sh", ["lean"]]]) {
+    assert.equal(run(dir, script, args).status, 2, script);
+  }
+});
+
+
+test("an existing JAR whose TLC entry point cannot run is unavailable", () => {
+  const dir = fixture();
+  const jar = join(dir, "bad.jar");
+  writeFileSync(jar, "not a jar");
+  const matrix = join(dir, "One.matrix");
+  writeFileSync(matrix, "spec One.tla\nrun n=1 | N=1\n");
+  const java = command(dir, "bad-java", '[ "$1" = "-version" ] && exit 0\necho "Could not find or load main class tlc2.TLC" >&2; exit 1');
+  for (const [script, args] of [["setup.sh", ["tla"]], ["tlc-matrix.sh", [matrix]]]) {
+    const result = run(dir, script, args, { JAVA: java, TLC_JAR: jar });
+    assert.equal(result.status, 3, result.stdout);
+    assert.ok(result.stdout.startsWith("UNAVAILABLE "), result.stdout);
+    includes(result.stdout, "tlc2.TLC");
+    excludes(result.stdout, "READY");
+    excludes(result.stdout, "SUMMARY");
+  }
+});
+
+test("Lean installation output follows an unavailable result when installation fails", () => {
+  const dir = fixture();
+  writeFileSync(join(dir, "lean-toolchain"), "leanprover/lean4:v4.34.1\n");
+  command(dir, "elan", 'if [ "$1" = "toolchain" ]; then echo "install log"; fi; exit 1');
+  const result = run(dir, "setup.sh", ["lean", dir]);
+  assert.equal(result.status, 3);
+  assert.ok(result.stdout.startsWith("UNAVAILABLE "), result.stdout);
+  includes(result.stdout, "install log");
+});
+
+
+test("the pinned TLC help command may return 1 after printing its help", () => {
+  const dir = fixture();
+  const jar = join(dir, "tools.jar");
+  writeFileSync(jar, "supplied");
+  const java = command(dir, "help-java", '[ "$1" = "-version" ] && exit 0\necho "TLC - provides model checking and simulation of TLA+ specifications - Version 2.19"; exit 1');
+  const result = run(dir, "setup.sh", ["tla"], { JAVA: java, TLC_JAR: jar });
+  assert.equal(result.status, 0, result.stdout);
+  includes(result.stdout, "READY TLC");
 });

@@ -43,8 +43,8 @@ LEAN_PROPERTY = ("theorem", "lemma", "example", "#guard")
 LEAN_DECLARATION = re.compile(r"^(?:@\[.*?\] |private |protected |noncomputable )*((?:theorem|lemma|def|abbrev|instance|example|structure|inductive)\b(?: [^\s:(\[{]+)?|#guard.*|#eval.*)")
 # Fails the same way as lean-check.sh when the pin is not ready, without installing it.
 LEAN = """source "$1/lean-tools.sh"
-toolchain=$(lean_pin "$2") || { echo "$toolchain"; exit 2; }
-lean_pin_ready "$toolchain" || { echo "FAIL $toolchain is not ready; run bash $1/setup.sh lean $2"; exit 2; }
+toolchain=$(lean_pin "$2") || { status=$?; echo "$toolchain"; exit "$status"; }
+lean_pin_ready "$toolchain" || { echo "UNAVAILABLE $toolchain is not ready; run bash $1/setup.sh lean $2"; exit 3; }
 elan run "$toolchain" lake --dir "$2" env lean "$3"
 """
 
@@ -58,12 +58,14 @@ class Mutation:
     new: list = field(default_factory=list)
 
 
-def stop(message):
+def stop(message, status=1):
     print(f"FAIL {message}")
-    sys.exit(1)
+    sys.exit(status)
 
 
 def parse(path):
+    if not path.is_file():
+        stop(f"{path} does not exist")
     mutations = []
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip() or line.startswith("#"):
@@ -120,6 +122,8 @@ def check_tla(spec, kinds, runs, mutation, work):
     matrix.write_text("\n".join([f"spec {spec.name}", f"check {kind} {mutation.detects}", *runs]) + "\n", encoding="utf-8")
     command = ["bash", str(HERE / "tlc-matrix.sh"), str(matrix), *([mutation.only] if mutation.only else [])]
     done = subprocess.run(command, capture_output=True, text=True, check=False)
+    if done.returncode == 3:
+        return "UNAVAILABLE", done.stdout + done.stderr
     if done.returncode == 0:
         return "MISSED", ""
     # A deadlock stops the system for good, so it breaks a temporal property but no invariant.
@@ -138,6 +142,8 @@ def check_lean(model, project, mutation, work):
     done = subprocess.run(["bash", "-c", LEAN, "bash", str(HERE), str(project), str(copy)],
                           capture_output=True, text=True, check=False)
     output = done.stdout + done.stderr
+    if done.returncode == 3:
+        return "UNAVAILABLE", done.stdout + done.stderr
     if done.returncode == 0:
         return "MISSED", ""
     lines, failed = source.splitlines(), []
@@ -148,14 +154,14 @@ def check_lean(model, project, mutation, work):
                     failed.append(declaration[1])
                 break
     # A plausible bug still compiles, so only a property may fail on it.
-    if done.returncode == 2 or not failed or not all(name.startswith(LEAN_PROPERTY) for name in failed):
+    if not failed or not all(name.startswith(LEAN_PROPERTY) for name in failed):
         return "ERROR", output
     return "DETECTED", "fails " + "; ".join(failed)
 
 
 def main():
     if len(sys.argv) != 2:
-        stop("usage: mutate.py <Name.mutations>")
+        stop("usage: mutate.py <Name.mutations>", 2)
     path = Path(sys.argv[1]).resolve()
     mutations = parse(path)
     spec, model = path.with_suffix(".tla"), path.with_suffix(".lean")
@@ -174,6 +180,9 @@ def main():
     for mutation in mutations:
         with tempfile.TemporaryDirectory() as work:
             verdict, detail = check(mutation, Path(work))
+        if verdict == "UNAVAILABLE":
+            print(detail.strip())
+            sys.exit(3)
         if verdict == "ERROR":
             stop(f"mutation '{mutation.label}' did not reach a verdict:\n{detail.strip()}")
         detected += verdict == "DETECTED"

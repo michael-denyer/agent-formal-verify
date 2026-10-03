@@ -51,6 +51,8 @@ Tool caches survive plugin updates. Run setup again only if a release introduces
 
 The [verification skill](../skills/formal-verify/SKILL.md) directs the agent to select protocols and sequential invariants, transcribe their behaviour, and check their properties. It uses TLC to explore bounded instances, and Lean to evaluate bounded searches and prove properties for every size.
 
+A helper that cannot run a tool prints `UNAVAILABLE` and exits 3. Report that target as "not checked" with the remedy, never as a pass or a model failure. Failed checks exit 1 and usage errors exit 2.
+
 Before reporting a pass, it requires mutations that demonstrate the properties detect relevant bugs. They are kept in a file beside each model, and the mutation runner rechecks them. The Lean checker audits every declaration for `sorry` and for axioms beyond Lean's three standard ones. For failures, it requires source locations, reachability checks, and a reproduction where practical. The agent changes code, commits and opens pull requests only when you ask for fixes; it then fixes the code and model together, with one PR per bug.
 
 Replies, pull requests and documents are written for a reader who knows the code and has used neither tool. They lead with what goes wrong in the code, state each property as what it guarantees, and say what a TLC pass, a Lean proof and a detected mutation each mean.
