@@ -38,7 +38,7 @@ List plausible bugs in the mutations file, such as `<` instead of `≤`, a missi
 
 ## Report
 
-Report only after reading the output of both commands. Give:
+Report only after reading the output of both commands. If either exits 3 with `UNAVAILABLE`, report "not checked" with the printed remedy; do not claim a pass or a model failure. Give:
 
 - the file paths, both commands, the checker's PASS or FAIL line and the mutation runner's output;
 - for each counter-example, concrete inputs to the code's function, the source line of the failing arithmetic, a unit test with those inputs, whether shipped callers can pass those inputs, and the proposed fix;

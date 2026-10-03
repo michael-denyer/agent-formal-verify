@@ -34,7 +34,7 @@ Prepare tools after picking targets and before launching agents. The helpers are
 - When a target needs TLA+, run `bash <skill-dir>/scripts/setup.sh tla`.
 - When a target needs Lean, every Lean model in the repository shares one Lake project. If the repository has none, copy `lakefile.toml`, `lake-manifest.json` and `lean-toolchain` from `<skill-dir>/examples/lean-template/` to `lean/` in the target repository, once. Then run `bash <skill-dir>/scripts/setup.sh lean <absolute-model-project-path>`.
 
-Require a successful exit and a `READY` line from each command. The setup helper reuses ready tools and installs a missing Lean pin, so the user does not need to rerun `/agent-formal-verify:setup` when a target or pin changes. Keep the installed skill files read-only and copy templates into the target repository.
+Require a successful exit and a `READY` line from each command. A helper that cannot run prints `UNAVAILABLE` and exits 3. Report it as "not checked" with its remedy. It is neither a pass nor a failure of the model. A check that ran and failed exits 1; usage errors exit 2. The setup helper reuses ready tools and installs a missing Lean pin, so the user does not need to rerun `/agent-formal-verify:setup` when a target or pin changes. Keep the installed skill files read-only and copy templates into the target repository.
 
 If a system prerequisite such as Java or elan is missing, use the [setup skill](../setup/SKILL.md) to prepare it within the user's installation constraints and existing authorization. Report any prerequisite that cannot be prepared. If `java` on PATH has no runtime, set `JAVA` to a working JDK's `java` binary for the setup helper and the matrix runner.
 
@@ -102,6 +102,7 @@ Write the reply, and any pull request or document, for a reader who knows the co
    | Lean passes | Lean proved the property for every input, under the listed assumptions. |
    | A bounded search passes | Every input up to the stated bound was tried. |
    | Mutations detected | Deliberate bugs were planted in copies of the model, and the checks caught each one. This shows the checks can fail. |
+   | UNAVAILABLE | The tool could not run. This target was not checked; give the printed remedy. |
    | Counter-example | A step-by-step schedule or an input that breaks the property. |
 
 4. Give a term of either tool its meaning beside it: an invariant is always true, a liveness property says something eventually happens, fairness assumes a thread that can run does run, an axiom is taken without proof, and `sorry` marks an unfinished proof.

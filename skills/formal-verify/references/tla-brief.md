@@ -50,7 +50,7 @@ Before reporting a pass, list mutations that represent plausible code bugs in th
 
 ## Report
 
-Report only after reading the output of both commands. Give:
+Report only after reading the output of both commands. If either exits 3 with `UNAVAILABLE`, report "not checked" with the printed remedy; do not claim a pass or a model failure. Give:
 
 - the file paths, both commands and their SUMMARY lines;
 - each FAIL line, with every step of its trace mapped to a code event and `file:line`;

@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.5 - unavailable tools are not model failures
+
+Helpers now print `UNAVAILABLE` and exit 3 when TLC or Lean cannot run because a prerequisite is missing, unusable or unverified. The remedy stays with that result. Mutation checks preserve the status and stop without a MISSED or SUMMARY line. Model and input errors remain `FAIL` with exit 1; usage errors exit 2. Reports mark an unavailable target as "not checked".
+
 ## 0.2.4 - no listing fields in `plugin.json`
 
 The Claude `plugin.json` no longer carries `icon`, `documentationUrl`, `supportUrl`, `privacyPolicyUrl`, or `termsOfServiceUrl`. Claude Code ignores all five at load time. The Claude plugin directory read the `icon` path as an image the plugin's code could run and held the version for review. `.claude-plugin/icon.png` stays in the repository.

@@ -24,12 +24,14 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/tlc-tools.sh"
 TLC_WORKERS=${TLC_WORKERS:-auto}
 
-matrix=${1:?usage: tlc-matrix.sh <matrix-file> [label-substring]}
+[ "$#" -ge 1 ] && [ "$#" -le 2 ] || { echo "usage: tlc-matrix.sh <matrix-file> [label-substring]"; exit 2; }
+matrix=$1
+[ -f "$matrix" ] || { echo "FAIL $matrix does not exist"; exit 1; }
 only=${2:-}
 MATRIX_DIR=$(cd "$(dirname "$matrix")" && pwd)
 
-require_tlc_runtime || exit 1
-tlc_jar_ready || exit 1
+require_tlc_runtime || exit $?
+tlc_jar_ready || exit $?
 
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
