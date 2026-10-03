@@ -263,7 +263,12 @@ test("an insufficient Rust unwind bound never counts as a detected mutation", ()
   excludes(result.stdout, "DETECTED");
 });
 
-for (const incomplete of [{ category: "unwind", status: "Failure" }, { category: "assertion", status: "Undetermined" }]) {
+for (const incomplete of [
+  { category: "unwind", status: "Failure" },
+  { category: "assertion", status: "Undetermined" },
+  { category: "cover", status: "Success" },
+  { category: "assertion", status: "Satisfied" },
+]) {
   test(`Rust mutation rejects a counter-example accompanied by ${incomplete.category} ${incomplete.status}`, () => {
     const { dir, name, report } = kaniFixture("failure");
     const checks = report.verification_results.results[0].checks;

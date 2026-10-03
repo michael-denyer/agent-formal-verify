@@ -141,11 +141,12 @@ def verify(crate, work, kani, name, bound):
             category, status = check["category"], check["status"]
             if status not in {"Success", "Failure", "Unreachable", "Undetermined", "Satisfied", "Unsatisfiable"}:
                 raise CheckError(f"unknown Kani check status {status}")
-            incomplete |= status == "Undetermined" or category == "unwind" and status == "Failure"
             good = status == "Satisfied" if category == "cover" else status in {"Success", "Unreachable"}
             if not good:
-                property_failure |= (category == "cover" and status in {"Unsatisfiable", "Unreachable"}
-                                     or category not in {"cover", "unwind"} and status == "Failure")
+                refuted = (category == "cover" and status in {"Unsatisfiable", "Unreachable"}
+                           or category not in {"cover", "unwind"} and status == "Failure")
+                property_failure |= refuted
+                incomplete |= not refuted
                 location = check["location"]
                 reason = "bound too low: " if category == "unwind" else ""
                 failures.append(f"{reason}{category} {status}: {check['description']} at "
