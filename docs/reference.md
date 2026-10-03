@@ -55,6 +55,8 @@ A helper that cannot run a tool prints `UNAVAILABLE` and exits 3. Report that ta
 
 Before reporting a pass, it requires mutations that demonstrate the properties detect relevant bugs. They are kept in a file beside each model, and the mutation runner rechecks them. The Lean checker audits every declaration for `sorry` and for axioms beyond Lean's three standard ones. For failures, it requires source locations, reachability checks, and a reproduction where practical. The agent changes code, commits and opens pull requests only when you ask for fixes; it then fixes the code and model together, with one PR per bug.
 
+For a closed Lean proof, reports give the number of differential vectors that agree with the production function and the integer widths, or say that the comparison was not run. Each counter-example is labelled `reproduced`, `reachable at shipped settings`, or `model-only`, according to the production evidence.
+
 Replies, pull requests and documents are written for a reader who knows the code and has used neither tool. They lead with what goes wrong in the code, state each property as what it guarantees, and say what a TLC pass, a Lean proof and a detected mutation each mean.
 
 A passing model establishes its stated properties under its assumptions. Reports must identify omitted code constraints and unfinished proofs. These models do not check memory ordering below the mutex; keep ThreadSanitizer or race-detector checks. They do not establish correctness of the entire program or guarantee a particular number of discovered bugs.

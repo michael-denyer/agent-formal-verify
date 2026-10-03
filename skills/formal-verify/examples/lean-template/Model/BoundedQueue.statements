@@ -219,6 +219,13 @@
       "type": "(motive : Nat → Sort u_1) → (x : Nat) → (Unit → motive 0) → ((steps : Nat) → motive steps.succ) → motive x",
       "typeHash": "762abfa7addd0bd8d4a548d7221baf925cf09a9c172d54d9d49a913a6c7908c2",
       "valueHash": "77abc13fab290d842c22cc52064b8c6050a8bf3ccf386bf1c35069c35fc13eef"
+    },
+    {
+      "name": "BoundedQueue.vectors",
+      "kind": "definition",
+      "type": "List (Nat × BoundedQueue.State)",
+      "typeHash": "1c42ebad68be7423b6bf131d0001947aa0a1f5a5f7904dd03482bb357dfd97d2",
+      "valueHash": "e28064538087b4e80e82ccbcf80a11f9f04ca7fe388ecd2284a60d3bab162123"
     }
   ]
 }
