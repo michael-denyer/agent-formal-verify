@@ -60,6 +60,8 @@ An agent writes only its own files, `tla/<Name>.tla`, `.matrix` and `.mutations`
 
 ## 4. Read the counter-example back into the code
 
+For a closed Lean proof, compare the model's printed differential vectors with the production function in the repository's native test framework. Report the agreement count and integer widths. Claim that the proof describes the code only after this comparison agrees, or state beside the verdict that the vectors were not run.
+
 For each violation, in this order:
 
 1. Read the reduced trace that the matrix runner prints under the FAIL line, or the inputs that Lean's bounded search prints. Map each step to a code event and source line.
@@ -93,7 +95,7 @@ A passing model establishes its stated properties under its assumptions. It is a
 Write the reply, and any pull request or document, for a reader who knows the code and has used neither tool.
 
 1. Start with what was found, in the code's terms. For each bug, say what goes wrong for a caller or user, the code events in order with `file:line`, whether the shipped settings can reach it, how to reproduce it, and the fix or proposed fix, with a PR link when one was opened.
-2. Give a table with one row per target: what was checked, as a sentence about the code, and the verdict. State each property as what it guarantees, such as "the bar never shows 100% before the work finishes". Add the model's name for it in backticks only so the reader can find it.
+2. Give a table with one row per target: what was checked, as a sentence about the code, and the verdict. Label each counter-example `reproduced`, `reachable at shipped settings`, or `model-only`. State each property as what it guarantees, such as "the bar never shows 100% before the work finishes". Add the model's name for it in backticks only so the reader can find it.
 3. Say what each kind of evidence means where it first appears:
 
    | Evidence | Meaning to give |
@@ -103,6 +105,9 @@ Write the reply, and any pull request or document, for a reader who knows the co
    | A bounded search passes | Every input up to the stated bound was tried. |
    | Mutations detected | Deliberate bugs were planted in copies of the model, and the checks caught each one. This shows the checks can fail. |
    | UNAVAILABLE | The tool could not run. This target was not checked; give the printed remedy. |
+   | reproduced | A deterministic test or race-detector run fails on the production code. |
+   | reachable at shipped settings | The shipped constants and callers permit the counter-example, but no production reproduction has confirmed it yet. |
+   | model-only | The counter-example needs a configuration or caller the shipped code does not use. |
    | Counter-example | A step-by-step schedule or an input that breaks the property. |
 
 4. Give a term of either tool its meaning beside it: an invariant is always true, a liveness property says something eventually happens, fairness assumes a thread that can run does run, an axiom is taken without proof, and `sorry` marks an unfinished proof.

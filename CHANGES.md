@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.8 - compare models with code and label counter-examples
+
+The Lean template prints boundary and in-range test vectors. The brief requires comparing them with the production function in its native tests before reporting that a proof describes the code, or stating that the comparison was not run. Reports label counter-examples as reproduced, reachable at shipped settings, or model-only. Lean goal and diagnostics tools remain optional.
+
 ## 0.2.7 - require reachable boundary states
 
 A TLA+ matrix can require a state with `reach <Operator> | <label>`. The checker searches the first matching run and reports the shortest witness, or fails when no state satisfies the predicate. Reach checks have separate summary counts and can detect mutations with `detects reach:<Operator>`. The templates require a full-window state in TLC and Lean so a property cannot pass by avoiding its boundary.

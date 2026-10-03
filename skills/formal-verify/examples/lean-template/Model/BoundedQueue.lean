@@ -84,4 +84,15 @@ theorem consume_keeps_invariant (w : Nat) (s t : State) (hs : Invariant w s) (h 
     omega
   · cases h
 
+def vectors : List (Nat × State) :=
+  [(0, ⟨0, 0⟩), (1, ⟨0, 0⟩), (1, ⟨1, 0⟩), (1, ⟨1, 1⟩),
+   (4, ⟨0, 0⟩), (4, ⟨3, 0⟩), (4, ⟨4, 0⟩), (4, ⟨5, 1⟩), (4, ⟨5, 5⟩)]
+
+#eval do
+  for (w, s) in vectors do
+    let output := fun (t : Option State) => match t with
+      | none => "none"
+      | some t => s!"some({t.next},{t.consumed})"
+    IO.println s!"VECTOR w={w} input={s.next},{s.consumed} claim={output (claim w s)} consume={output (consume s)}"
+
 end BoundedQueue

@@ -16,6 +16,10 @@ Every `.lean` file in the project must belong to a library in the lakefile. With
 4. Write and evaluate a bounded exhaustive check before proving the theorem. The template's `badPairs` finds states where one step breaks the invariant; `#eval badPairs 2 6` prints concrete counter-examples and `#guard` fails the build while any exist. Set the bound above the code's slot count, batch size, window and other constants so it includes boundary cases. Add a `#guard` that a bounded search from the initial state reaches the states the property depends on. The template's `reachable` search requires a full window.
 5. Prove one theorem per step or function for every size. Split on the guards, use `simp only [...]` to expose arithmetic, then use `omega` or `decide` for a finite type. If a proof needs a fact about the real code that the model lacks, state it as a theorem hypothesis and name it in a comment. Do not declare it as an `axiom`. An unfinished proof may use `sorry`, but the Lean checker reports it as a failure. The checker also fails every declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, which also rules out `native_decide`.
 
+After a proof closes, print differential test vectors with `#eval`. Include boundary inputs and a spread of in-range inputs, with each input and the model's output on one line. Write a test in the target repository's own framework that calls the production function on those inputs and compares its output. A mismatch is a bug in the production code or the transcription; establish which before reporting. State how many vectors agree and the integer widths in both implementations. If the production comparison was not run, say so beside the proof verdict.
+
+When a theorem needs a proof beyond bounded search and the host has [lean-lsp-mcp](https://github.com/oOo0oOo/lean-lsp-mcp), its goal and diagnostics tools can shorten the loop. This plugin neither requires nor configures that server.
+
 ## Keep the model small
 
 Write each fact once.
@@ -49,4 +53,5 @@ Report only after reading the output of both commands. If either exits 3 with `U
 - the states required by the reach guard and the search bound;
 - for each counter-example, concrete inputs to the code's function, the source line of the failing arithmetic, a unit test with those inputs, whether shipped callers can pass those inputs, and the proposed fix;
 - the `.statements` path and any reason for re-freezing;
-- for a closed proof, its assumptions, including integer widths, bounds and each theorem hypothesis.
+- for a closed proof, its assumptions, including integer widths, bounds and each theorem hypothesis;
+- the number of differential vectors on which the model and production code agree, their integer widths, or an explicit statement that the comparison was not run.
