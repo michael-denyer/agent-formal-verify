@@ -16,7 +16,7 @@ Prepare the complete shared toolset once, independently of any repository. Verif
 4. Run the three commands below with the absolute path of the `formal-verify` skill, which is this skill's sibling directory, in place of `<skill-dir>`. Treat installed plugin files as read-only. The Lean template supplies the default pin without creating a model project or changing elan's global default.
 
    ```shell
-   bash <skill-dir>/scripts/setup.sh bmc
+   bash <skill-dir>/scripts/setup.sh rust
    bash <skill-dir>/scripts/setup.sh tla
    bash <skill-dir>/scripts/setup.sh lean <skill-dir>/examples/lean-template
    ```

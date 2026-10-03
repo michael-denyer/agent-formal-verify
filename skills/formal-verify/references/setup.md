@@ -28,18 +28,18 @@ The mutation runner reads `Name.mutations` beside `Name.tla` and `Name.matrix`. 
 
 ## Rust and Kani
 
-Install Rust and Cargo, then install Kani 0.68.0, the version pinned in [`scripts/bmc.py`](../scripts/bmc.py):
+Install Rust and Cargo, then install Kani 0.68.0, the version pinned in [`scripts/kani.py`](../scripts/kani.py):
 
 ```shell
 cargo install --locked kani-verifier --version 0.68.0
 cargo kani setup
-bash <skill-dir>/scripts/setup.sh bmc
-bash <skill-dir>/scripts/bmc-check.sh /path/to/crate
-bash <skill-dir>/scripts/bmc-check.sh /path/to/crate proofs::claim_keeps_invariant
+bash <skill-dir>/scripts/setup.sh rust
+bash <skill-dir>/scripts/kani-check.sh /path/to/crate
+bash <skill-dir>/scripts/kani-check.sh /path/to/crate proofs::claim_keeps_invariant
 python3 <skill-dir>/scripts/mutate.py /path/to/crate/src/lib.mutations
 ```
 
-Kani supports Linux and macOS on x86_64 and aarch64. See the [pinned installation guide](https://github.com/model-checking/kani/blob/kani-0.68.0/docs/src/install-guide.md) for system prerequisites. The plugin downloads and installs no Kani runtime. `setup.sh bmc` checks the complete pinned bundle and invokes its driver directly. Verification and mutations reuse that driver with its bundled Rust toolchain. They never invoke the auto-installing Cargo wrapper, so the Cargo installer registration is unnecessary after setup. A relative `KANI_HOME` resolves against the caller's directory.
+Kani supports Linux and macOS on x86_64 and aarch64. See the [pinned installation guide](https://github.com/model-checking/kani/blob/kani-0.68.0/docs/src/install-guide.md) for system prerequisites. The plugin downloads and installs no Kani runtime. `setup.sh rust` checks the complete pinned bundle and invokes its driver directly. Verification and mutations reuse that driver with its bundled Rust toolchain. They never invoke the auto-installing Cargo wrapper, so the Cargo installer registration is unnecessary after setup. A relative `KANI_HOME` resolves against the caller's directory.
 
 The Rust checker discovers proof harnesses and checks each selected harness separately. It reports the unwind bound and check count, rejects an insufficient bound and any cover condition that was not satisfied, and prints a concrete playback test for a failed assertion when Kani can produce one. Larger inputs and loops remain outside the reported bounds. Crate builds may obtain dependencies declared in Cargo; the template has none.
 

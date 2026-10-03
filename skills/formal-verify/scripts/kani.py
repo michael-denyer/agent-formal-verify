@@ -2,6 +2,7 @@
 # Copyright (c) 2026 Michael Denyer
 # SPDX-License-Identifier: GPL-3.0-only
 """Run the pinned Kani and validate its versioned discovery and result records."""
+import argparse
 import json
 import os
 import subprocess
@@ -135,7 +136,7 @@ def discover(crate, work, kani):
                     if type(bound) is not int or bound < 1:
                         raise CheckError(f"{name} needs #[kani::unwind(N)] with N greater than zero")
                     bounds[name] = bound
-    except (KeyError, TypeError, AttributeError) as error:
+    except (TypeError, AttributeError) as error:
         raise CheckError(f"malformed Kani discovery record: {error!r}") from error
     if set(bounds) != set(names):
         raise CheckError("Kani did not report unwind metadata for every harness")
@@ -205,20 +206,22 @@ def verify(crate, work, kani, name, bound):
 
 
 def main():
-    arguments = sys.argv[1:]
-    if arguments != ["--ready"] and (len(arguments) < 2 or arguments[0] != "--check"):
-        print("usage: bmc.py --ready | --check <crate-dir> [<harness> ...]")
-        return 2
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("ready", help="check that the pinned Kani bundle runs")
+    check = commands.add_parser("check", help="verify the crate's proof harnesses")
+    check.add_argument("crate")
+    check.add_argument("harnesses", nargs="*")
+    arguments = parser.parse_args()
     try:
         kani = Kani()
     except Unavailable as error:
         print(f"UNAVAILABLE {error}")
         return 3
-    if arguments == ["--ready"]:
+    if arguments.command == "ready":
         print(f"READY Kani {kani.version}")
         return 0
-    _, directory, *selected = arguments
-    crate = Path(directory).resolve()
+    crate, selected = Path(arguments.crate).resolve(), arguments.harnesses
     with tempfile.TemporaryDirectory(prefix="formal-kani-") as temporary:
         work = Path(temporary)
         try:
@@ -233,10 +236,11 @@ def main():
         passed = 0
         for name in names:
             outcome = verify(crate, work, kani, name, bounds[name])
-            passed += outcome.verdict is Verdict.PASS
-            print(f"{'PASS' if outcome.verdict is Verdict.PASS else 'FAIL'} {name} unwind={bounds[name]} "
-                  f"checks={outcome.checks}" + (": " + "; ".join(outcome.failures) if outcome.failures else ""))
-            if outcome.verdict is not Verdict.PASS:
+            ok = outcome.verdict is Verdict.PASS
+            passed += ok
+            print(f"{'PASS' if ok else 'FAIL'} {name} unwind={bounds[name]} checks={outcome.checks}"
+                  + (": " + "; ".join(outcome.failures) if outcome.failures else ""))
+            if not ok:
                 print(outcome.output.rstrip())
         print(f"SUMMARY {passed} of {len(names)} harnesses passed")
         return 0 if passed == len(names) else 1

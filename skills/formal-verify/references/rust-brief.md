@@ -37,7 +37,7 @@ impossible panic branches. Every cover must have status `Satisfied`.
 Stay in the target repository and use absolute paths:
 
 ```sh
-bash <skill-dir>/scripts/bmc-check.sh /absolute/path/to/crate
+bash <skill-dir>/scripts/kani-check.sh /absolute/path/to/crate
 python3 <skill-dir>/scripts/mutate.py /absolute/path/to/crate/src/Name.mutations
 ```
 

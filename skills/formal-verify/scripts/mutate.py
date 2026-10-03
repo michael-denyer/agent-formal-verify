@@ -40,10 +40,10 @@ from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 
-# Importing bmc must not write __pycache__ into the skill directory.
+# Importing kani must not write __pycache__ into the skill directory.
 sys.dont_write_bytecode = True
 
-import bmc  # noqa: E402
+import kani
 
 HERE = Path(__file__).resolve().parent
 LEAN_PROPERTY = ("theorem", "lemma", "example", "#guard")
@@ -182,15 +182,15 @@ def check_lean(model, project, mutation, work):
     return "DETECTED", "fails " + "; ".join(failed)
 
 
-def check_rust(model, project, kani, bounds, mutation, work):
+def check_rust(model, project, verifier, bounds, mutation, work):
     """Return (verdict, detail) from Kani on the named harness in a mutated copy of the crate."""
     copy = work / "crate"
     shutil.copytree(project, copy, ignore=shutil.ignore_patterns("target", ".git"))
     (copy / model.relative_to(project)).write_text(mutated(model, mutation), encoding="utf-8")
-    outcome = bmc.verify(copy, work, kani, mutation.detects, bounds[mutation.detects])
-    if outcome.verdict is bmc.Verdict.PASS:
+    outcome = kani.verify(copy, work, verifier, mutation.detects, bounds[mutation.detects])
+    if outcome.verdict is kani.Verdict.PASS:
         return "MISSED", ""
-    if outcome.verdict is bmc.Verdict.REFUTED:
+    if outcome.verdict is kani.Verdict.REFUTED:
         return "DETECTED", "; ".join(outcome.failures)
     return "ERROR", "\n".join(outcome.failures) + "\n" + outcome.output
 
@@ -219,21 +219,21 @@ def rust_runner(model, mutations):
     if project is None:
         stop(f"{model} is in no Rust crate")
     try:
-        kani = bmc.Kani()
-    except bmc.Unavailable as error:
+        verifier = kani.Kani()
+    except kani.Unavailable as error:
         print(f"UNAVAILABLE {error}")
         sys.exit(3)
     with tempfile.TemporaryDirectory(prefix="formal-kani-discover-") as temporary:
         try:
-            bounds = bmc.discover(project, Path(temporary), kani)
-        except bmc.CheckError as error:
+            bounds = kani.discover(project, Path(temporary), verifier)
+        except kani.CheckError as error:
             stop(str(error))
     for mutation in mutations:
         if mutation.detects not in bounds:
             stop(f"mutation '{mutation.label}': unknown harness '{mutation.detects}'")
         if mutation.only:
             stop("Rust mutations do not support 'only'")
-    return set(bounds), partial(check_rust, model, project, kani, bounds)
+    return set(bounds), partial(check_rust, model, project, verifier, bounds)
 
 
 # Each runner validates the mutations, then returns the names they must cover and a check for one mutation.

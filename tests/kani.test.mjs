@@ -70,7 +70,7 @@ function kaniFixture(outcome = "success", config = {}) {
   const dir = kaniBundle({ harnesses: { [name]: 3 }, ...config });
   writeFileSync(join(dir, "Cargo.toml"), '[package]\nname="fixture"\nversion="0.1.0"\n');
   writeJson(join(dir, "report.json"), report);
-  command(dir, "cargo", `if [ "$1" = install ]; then echo "kani-verifier v${KANI}:"; exit; fi; shift; if [ ! -x "$KANI_HOME/kani-${KANI}/bin/kani-driver" ]; then echo auto-install >> "$TASK_TRACE"; exit 99; fi; exec "$KANI_HOME/kani-${KANI}/bin/kani-driver" "$@"`);
+  command(dir, "cargo", `shift; if [ ! -x "$KANI_HOME/kani-${KANI}/bin/kani-driver" ]; then echo auto-install >> "$TASK_TRACE"; exit 99; fi; exec "$KANI_HOME/kani-${KANI}/bin/kani-driver" "$@"`);
   return { dir, name, report };
 }
 
@@ -86,7 +86,7 @@ test("Kani setup rejects a missing verifier without installing it", () => {
   const dir = kaniBundle();
   rmSync(join(bundle(dir), "bin/kani-driver"));
   command(dir, "cargo", 'echo auto-install >> "$TASK_TRACE"; exit 99');
-  const result = runKani(dir, "setup.sh", ["bmc"]);
+  const result = runKani(dir, "setup.sh", ["rust"]);
   assert.equal(result.status, 3);
   includes(result.stdout, "UNAVAILABLE");
   includes(result.stdout, `--version ${KANI}`);
@@ -95,14 +95,14 @@ test("Kani setup rejects a missing verifier without installing it", () => {
 
 test("Kani setup accepts the pinned version", () => {
   const dir = kaniBundle();
-  const result = runKani(dir, "setup.sh", ["bmc"]);
+  const result = runKani(dir, "setup.sh", ["rust"]);
   assert.equal(result.status, 0);
   includes(result.stdout, `READY Kani ${KANI}`);
 });
 
 test("Kani setup rejects a different verifier version", () => {
   const dir = kaniBundle({ version: "0.67.0" });
-  const result = runKani(dir, "setup.sh", ["bmc"]);
+  const result = runKani(dir, "setup.sh", ["rust"]);
   assert.equal(result.status, 3);
   includes(result.stdout, "UNAVAILABLE");
 });
@@ -110,7 +110,7 @@ test("Kani setup rejects a different verifier version", () => {
 test("Kani reports an unexecutable bundle as unavailable without a traceback", () => {
   const dir = kaniBundle();
   writeFileSync(join(bundle(dir), "bin/kani-driver"), "invalid executable\n");
-  const result = runKani(dir, "setup.sh", ["bmc"]);
+  const result = runKani(dir, "setup.sh", ["rust"]);
   assert.equal(result.status, 3);
   includes(result.stdout, `UNAVAILABLE Kani ${KANI} cannot run`);
   excludes(result.stderr, "Traceback");
@@ -119,7 +119,7 @@ test("Kani reports an unexecutable bundle as unavailable without a traceback", (
 for (const outcome of ["success", "failure", "unwind", "unsat", "unreachable"]) {
   test(`Kani ${outcome} has the expected wrapper verdict`, () => {
     const { dir, name } = kaniFixture(outcome);
-    const result = runKani(dir, "bmc-check.sh", [dir]);
+    const result = runKani(dir, "kani-check.sh", [dir]);
     assert.equal(result.status, outcome === "success" ? 0 : 1, result.stdout + result.stderr);
     includes(result.stdout, `${outcome === "success" ? "PASS" : "FAIL"} ${name} unwind=3 checks=`);
     includes(result.stdout, `SUMMARY ${outcome === "success" ? 1 : 0} of 1 harnesses passed`);
@@ -138,7 +138,7 @@ for (const damage of ["unknown status", "wrong version", "wrong harness", "incom
     if (damage === "incomplete") report.verification_results.summary.executed = 0;
     if (damage === "empty checks") result.checks = [];
     writeJson(join(dir, "report.json"), report);
-    const done = runKani(dir, "bmc-check.sh", [dir]);
+    const done = runKani(dir, "kani-check.sh", [dir]);
     assert.equal(done.status, 1);
     excludes(done.stdout, "PASS ");
     includes(done.stdout, "verification did not complete");
@@ -147,13 +147,13 @@ for (const damage of ["unknown status", "wrong version", "wrong harness", "incom
 
 test("Kani rejects a crate without harnesses", () => {
   const { dir } = kaniFixture("success", { harnesses: {} });
-  const result = runKani(dir, "bmc-check.sh", [dir]);
+  const result = runKani(dir, "kani-check.sh", [dir]);
   assert.equal(result.status, 1);
   includes(result.stdout, "no proof harnesses");
   excludes(result.stdout, "SUMMARY");
 });
 
-for (const script of ["bmc-check.sh", "mutate.py"]) {
+for (const script of ["kani-check.sh", "mutate.py"]) {
   test(`Kani ${script} reports malformed harness metadata as a failure without a traceback`, () => {
     const { dir, name } = kaniFixture("success", { metadata: [] });
     const result = runKani(dir, script, [script === "mutate.py" ? rustMutation(dir, name) : dir]);
@@ -165,7 +165,7 @@ for (const script of ["bmc-check.sh", "mutate.py"]) {
 
 test("Kani distinguishes malformed projects from unavailable tools", () => {
   const { dir } = kaniFixture();
-  const result = runKani(dir, "bmc-check.sh", [join(dir, "missing")]);
+  const result = runKani(dir, "kani-check.sh", [join(dir, "missing")]);
   assert.equal(result.status, 1);
   includes(result.stdout, "Cargo.toml is missing");
 });
@@ -175,7 +175,7 @@ test("Kani does not invoke cargo when its custom bundle is absent or incomplete"
   command(dir, "cargo", 'echo invoked >> "$TASK_TRACE"; exit 99');
   for (const home of [join(dir, "absent"), join(dir, "incomplete")]) {
     mkdirSync(home, { recursive: true });
-    const result = run(dir, "setup.sh", ["bmc"], { KANI_HOME: home });
+    const result = run(dir, "setup.sh", ["rust"], { KANI_HOME: home });
     assert.equal(result.status, 3);
     includes(result.stdout, "UNAVAILABLE");
     assert.equal(existsSync(join(dir, "calls")), false);
@@ -186,7 +186,7 @@ test("Kani refuses an unfinished installer archive before invoking cargo", () =>
   const dir = kaniBundle();
   writeFileSync(join(dir, "kani/incomplete.tar.gz"), "archive");
   command(dir, "cargo", 'echo invoked >> "$TASK_TRACE"; exit 99');
-  const result = runKani(dir, "setup.sh", ["bmc"]);
+  const result = runKani(dir, "setup.sh", ["rust"]);
   assert.equal(result.status, 3);
   includes(result.stdout, "incomplete Kani setup");
   assert.equal(existsSync(join(dir, "calls")), false);
@@ -195,7 +195,7 @@ test("Kani refuses an unfinished installer archive before invoking cargo", () =>
 test("Kani uses the complete pinned bundle without a registered installer", () => {
   const dir = kaniBundle();
   command(dir, "cargo", 'echo auto-install >> "$TASK_TRACE"; exit 99');
-  const result = runKani(dir, "setup.sh", ["bmc"]);
+  const result = runKani(dir, "setup.sh", ["rust"]);
   assert.equal(result.status, 0, result.stdout + result.stderr);
   excludes(calls(dir), "auto-install");
 });
@@ -203,7 +203,7 @@ test("Kani uses the complete pinned bundle without a registered installer", () =
 test("Kani keeps rustup toolchain libraries a parent cargo exports away from the bundled toolchain", () => {
   const { dir } = kaniFixture();
   const loader = process.platform === "darwin" ? "DYLD_FALLBACK_LIBRARY_PATH" : "LD_LIBRARY_PATH";
-  const result = runKani(dir, "bmc.py", ["--check", dir], { [loader]: "/home/.rustup/toolchains/stable/lib:/opt/keep/lib" });
+  const result = runKani(dir, "kani.py", ["check", dir], { [loader]: "/home/.rustup/toolchains/stable/lib:/opt/keep/lib" });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.equal(driverEnv(dir)[loader], "/opt/keep/lib");
 });
@@ -248,7 +248,7 @@ test("Kani reports unavailable Python before running a check", () => {
   const dir = kaniBundle();
   command(dir, "bash", 'exec /bin/bash "$@"');
   command(dir, "dirname", 'exec /usr/bin/dirname "$@"');
-  const result = runKani(dir, "bmc-check.sh", [dir], { PATH: join(dir, "bin") });
+  const result = runKani(dir, "kani-check.sh", [dir], { PATH: join(dir, "bin") });
   assert.equal(result.status, 3);
   includes(result.stdout, "UNAVAILABLE python3");
   excludes(result.stdout, "SUMMARY");
@@ -256,7 +256,7 @@ test("Kani reports unavailable Python before running a check", () => {
 
 test("Kani rejects a missing named harness before running verification", () => {
   const { dir } = kaniFixture();
-  const result = runKani(dir, "bmc-check.sh", [dir, "missing"]);
+  const result = runKani(dir, "kani-check.sh", [dir, "missing"]);
   assert.equal(result.status, 1);
   includes(result.stdout, "unknown harnesses: missing");
   excludes(calls(dir), "--export-json");
@@ -265,7 +265,7 @@ test("Kani rejects a missing named harness before running verification", () => {
 test("Kani requires an explicit unwind bound", () => {
   const { dir, name } = kaniFixture();
   writeJson(join(dir, "driver.json"), { version: KANI, harnesses: { [name]: null } });
-  const result = runKani(dir, "bmc-check.sh", [dir]);
+  const result = runKani(dir, "kani-check.sh", [dir]);
   assert.equal(result.status, 1);
   includes(result.stdout, "needs #[kani::unwind(N)]");
 });
@@ -309,7 +309,7 @@ for (const incomplete of [
   });
 }
 
-for (const script of ["bmc-check.sh", "mutate.py"]) {
+for (const script of ["kani-check.sh", "mutate.py"]) {
   const target = (dir, name) => (script === "mutate.py" ? rustMutation(dir, name) : dir);
 
   test(`Kani ${script} reports a driver lost after discovery as a failed check`, () => {
@@ -333,7 +333,7 @@ for (const script of ["bmc-check.sh", "mutate.py"]) {
   test(`Kani ${script} bypasses a shadowed auto-installing cargo-kani wrapper`, () => {
     const { dir, name } = kaniFixture(script === "mutate.py" ? "failure" : "success");
     command(dir, "cargo-kani", 'echo auto-install >> "$TASK_TRACE"; exit 99');
-    command(dir, "cargo", `if [ "$1" = install ]; then echo "kani-verifier v${KANI}:"; else cargo-kani "$@"; fi`);
+    command(dir, "cargo", 'cargo-kani "$@"');
     const result = runKani(dir, script, [target(dir, name)]);
     assert.equal(result.status, 0, result.stdout + result.stderr + calls(dir));
     excludes(calls(dir), "auto-install");
@@ -342,7 +342,7 @@ for (const script of ["bmc-check.sh", "mutate.py"]) {
 
 test("the Rust checker does not treat a crate argument as a readiness command", () => {
   const dir = kaniBundle();
-  const result = runKani(dir, "bmc-check.sh", ["--ready"]);
+  const result = runKani(dir, "kani-check.sh", ["--ready"]);
   assert.equal(result.status, 1, result.stdout + result.stderr);
   includes(result.stdout, "Cargo.toml is missing");
   excludes(result.stdout, "READY");
