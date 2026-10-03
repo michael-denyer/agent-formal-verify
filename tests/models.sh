@@ -186,12 +186,12 @@ rejected bash "$scripts/lean-check.sh" "$work/frozen" | tee "$work/frozen.out"
 grep -q '^FROZEN Other.property: statement changed (source deleted)' "$work/frozen.out"
 bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean
 
-bash "$scripts/setup.sh" bmc
-bash "$scripts/bmc-check.sh" "$examples/kani-template"
+bash "$scripts/setup.sh" rust
+bash "$scripts/kani-check.sh" "$examples/kani-template"
 python3 "$scripts/mutate.py" "$examples/kani-template/src/lib.mutations"
 cp -R "$examples/kani-template" "$work/kani"
 sed -i.orig 's|state.next < state.consumed + window|state.next <= state.consumed + window|' "$work/kani/src/lib.rs"
-rejected bash "$scripts/bmc-check.sh" "$work/kani" proofs::claim_keeps_invariant | tee "$work/kani.out"
+rejected bash "$scripts/kani-check.sh" "$work/kani" proofs::claim_keeps_invariant | tee "$work/kani.out"
 grep -q '^FAIL proofs::claim_keeps_invariant' "$work/kani.out"
 grep -q 'Concrete playback unit test' "$work/kani.out"
 

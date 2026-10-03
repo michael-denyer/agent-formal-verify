@@ -1,5 +1,9 @@
 # Changes
 
+## 0.3.1 - name the Rust commands after the language and the tool
+
+`setup.sh rust` prepares Kani and `scripts/kani-check.sh` runs it. They replace `setup.sh bmc` and `bmc-check.sh`, and the Rust brief moves to `references/rust-brief.md`. As with TLA+ and TLC, the setup command and brief take the language's name and the scripts take the tool's. Rust mutations reject an unknown harness or an `only` line before any mutation runs. A refuted property no longer counts as a detected mutation when Kani also reports a status that the check's category does not use.
+
 ## 0.3.0 - check bounded Rust functions with Kani
 
 The Rust checker runs Kani 0.68.0 on actual functions through proof harnesses. It reports each harness's unwind bound and check count, rejects failed checks and unsatisfied cover witnesses, and prints generated concrete playback tests when available. Incomplete verification, insufficient unwinding bounds and unsatisfied covers fail. Rust mutations copy the whole crate and require detection by the named harness; compiler errors and incomplete verification do not count as detection.
