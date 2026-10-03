@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.6 - freeze Lean statements before proving them
+
+`lean-check.sh <project> --freeze [<file.lean> ...]` records each checked source's declaration types and definition values in a `.statements` file beside it. Later checks reject a changed statement, a changed definition or a deleted declaration. Proof changes and added declarations remain allowed. Freeze can record statements whose proofs use `sorry`, but it does not report a proof pass; the final check still rejects unfinished proofs and extra axioms. Fingerprints use SHA256 of structural expressions and belong to the recorded Lean pin. A toolchain change requires review and a fresh freeze.
+
 ## 0.2.5 - unavailable tools are not model failures
 
 Helpers now print `UNAVAILABLE` and exit 3 when TLC or Lean cannot run because a prerequisite is missing, unusable or unverified. The remedy stays with that result. Mutation checks preserve the status and stop without a MISSED or SUMMARY line. Model and input errors remain `FAIL` with exit 1; usage errors exit 2. Reports mark an unavailable target as "not checked".
