@@ -36,8 +36,9 @@ if "list" in args:
     harnesses = config["harnesses"]
     pathlib.Path("kani-list.json").write_text(json.dumps(
         {"kani-version": config["version"], "file-version": "0.1", "standard-harnesses": {"src/lib.rs": list(harnesses)}}))
-    (target / "crate.kani-metadata.json").write_text(json.dumps({"proof_harnesses": [
-        {"pretty_name": name, "attributes": {"unwind_value": bound}} for name, bound in harnesses.items()]}))
+    metadata = config.get("metadata", {"proof_harnesses": [
+        {"pretty_name": name, "attributes": {"unwind_value": bound}} for name, bound in harnesses.items()]})
+    (target / "crate.kani-metadata.json").write_text(json.dumps(metadata))
 elif config.get("compileError"):
     print("error: compilation failed")
     sys.exit(1)
@@ -151,6 +152,16 @@ test("Kani rejects a crate without harnesses", () => {
   includes(result.stdout, "no proof harnesses");
   excludes(result.stdout, "SUMMARY");
 });
+
+for (const script of ["bmc-check.sh", "mutate.py"]) {
+  test(`Kani ${script} reports malformed harness metadata as a failure without a traceback`, () => {
+    const { dir, name } = kaniFixture("success", { metadata: [] });
+    const result = runKani(dir, script, [script === "mutate.py" ? rustMutation(dir, name) : dir]);
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    includes(result.stdout, "FAIL malformed Kani discovery record");
+    excludes(result.stderr, "Traceback");
+  });
+}
 
 test("Kani distinguishes malformed projects from unavailable tools", () => {
   const { dir } = kaniFixture();

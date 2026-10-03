@@ -189,13 +189,12 @@ def check_rust(model, project, kani, bounds, mutation, work):
     copy = work / "crate"
     shutil.copytree(project, copy, ignore=shutil.ignore_patterns("target", ".git"))
     (copy / model.relative_to(project)).write_text(mutated(model, mutation), encoding="utf-8")
-    success, _, failures, output, property_failure = bmc.verify(
-        copy, work, kani, mutation.detects, bounds[mutation.detects])
-    if success:
+    outcome = bmc.verify(copy, work, kani, mutation.detects, bounds[mutation.detects])
+    if outcome.verdict is bmc.Verdict.PASS:
         return "MISSED", ""
-    if property_failure:
-        return "DETECTED", "; ".join(failures)
-    return "ERROR", "\n".join(failures) + "\n" + output
+    if outcome.verdict is bmc.Verdict.REFUTED:
+        return "DETECTED", "; ".join(outcome.failures)
+    return "ERROR", "\n".join(outcome.failures) + "\n" + outcome.output
 
 
 def rust_runner(model):
@@ -210,7 +209,7 @@ def rust_runner(model):
     with tempfile.TemporaryDirectory(prefix="formal-kani-discover-") as temporary:
         try:
             bounds = bmc.discover(project, Path(temporary), kani)
-        except (bmc.CheckError, KeyError, TypeError, AttributeError) as error:
+        except bmc.CheckError as error:
             stop(str(error))
     return bounds, partial(check_rust, model, project, kani, bounds)
 

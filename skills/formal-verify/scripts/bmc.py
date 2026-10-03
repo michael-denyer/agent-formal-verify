@@ -7,7 +7,17 @@ import os
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
+from enum import IntEnum
 from pathlib import Path
+
+STATUSES = {"Success", "Failure", "Unreachable", "Undetermined", "Satisfied", "Unsatisfiable"}
+# Statuses that pass and statuses that refute the property, by check category; any other is inconclusive.
+OUTCOMES = {
+    "cover": ({"Satisfied"}, {"Unsatisfiable", "Unreachable"}),
+    "unwind": ({"Success", "Unreachable"}, set()),
+}
+PROPERTY_OUTCOMES = ({"Success", "Unreachable"}, {"Failure"})
 
 
 class CheckError(Exception):
@@ -16,6 +26,26 @@ class CheckError(Exception):
 
 class Unavailable(Exception):
     pass
+
+
+class Verdict(IntEnum):
+    """A check's or harness's result, ordered so the worst check decides the harness."""
+    PASS = 0
+    REFUTED = 1
+    INCONCLUSIVE = 2
+
+
+@dataclass(frozen=True)
+class Outcome:
+    verdict: Verdict
+    checks: int
+    failures: list
+    output: str
+
+
+def search_path(variable, *directories):
+    inherited = [os.environ[variable]] if variable in os.environ else []
+    return os.pathsep.join([*(str(directory) for directory in directories), *inherited])
 
 
 class Kani:
@@ -33,15 +63,14 @@ class Kani:
         if any(home.glob("*.tar.gz")):
             raise Unavailable(f"incomplete Kani setup at {home}; finish cargo kani setup before checking")
         self.driver = bundle / "bin/kani-driver"
-        self.env = os.environ.copy()
-        self.env["KANI_HOME"] = str(home)
-        self.env["RUSTUP_TOOLCHAIN"] = str((bundle / "toolchain").resolve())
-        for variable, directories in {
-            "PATH": [bundle / "bin", bundle / "pyroot/bin", bundle / "toolchain/bin"],
-            "PYTHONPATH": [bundle / "pyroot"],
-        }.items():
-            inherited = [self.env[variable]] if variable in self.env else []
-            self.env[variable] = os.pathsep.join([*(str(path) for path in directories), *inherited])
+        self.env = os.environ | {
+            "KANI_HOME": str(home),
+            "RUSTUP_TOOLCHAIN": str((bundle / "toolchain").resolve()),
+            "PATH": search_path("PATH", bundle / "bin", bundle / "pyroot/bin", bundle / "toolchain/bin"),
+            "PYTHONPATH": search_path("PYTHONPATH", bundle / "pyroot"),
+        }
+        # A parent cargo (cargo run, cargo test, a build script) exports its rustup toolchain's
+        # lib directory here; the bundled compiler must load only the bundled toolchain.
         loader = "DYLD_FALLBACK_LIBRARY_PATH" if sys.platform == "darwin" else "LD_LIBRARY_PATH"
         if loader in self.env:
             self.env[loader] = os.pathsep.join(
@@ -77,39 +106,82 @@ def read_json(path):
 
 
 def discover(crate, work, kani):
+    """Return the unwind bound of every proof harness in crate, by fully qualified name."""
     if not (crate / "Cargo.toml").is_file():
         raise CheckError(f"{crate}/Cargo.toml is missing")
     done = invoke(crate, work, kani, "list", "--format", "json")
     if done.returncode:
         raise CheckError(f"Kani discovery failed:\n{done.stdout}{done.stderr}")
-    report = read_json(work / "kani-list.json")
-    if report.get("kani-version") != kani.version or report.get("file-version") != "0.1":
-        raise CheckError("unsupported Kani discovery schema or version")
-    groups = report.get("standard-harnesses")
-    if not isinstance(groups, dict) or not all(
-            isinstance(names, list) and all(isinstance(name, str) and name for name in names)
-            for names in groups.values()):
-        raise CheckError("malformed Kani harness list")
-    names = [name for group in groups.values() for name in group]
-    if not names:
-        raise CheckError("no proof harnesses found")
-    if len(set(names)) != len(names):
-        raise CheckError("duplicate harness names; select a single crate")
-    bounds = {}
-    for metadata in (work / "target").rglob("*.kani-metadata.json"):
-        for harness in read_json(metadata).get("proof_harnesses", []):
-            name = harness.get("pretty_name")
-            if name in names:
-                bound = harness.get("attributes", {}).get("unwind_value")
-                if type(bound) is not int or bound < 1:
-                    raise CheckError(f"{name} needs #[kani::unwind(N)] with N greater than zero")
-                bounds[name] = bound
+    try:
+        report = read_json(work / "kani-list.json")
+        if report.get("kani-version") != kani.version or report.get("file-version") != "0.1":
+            raise CheckError("unsupported Kani discovery schema or version")
+        groups = report.get("standard-harnesses")
+        if not isinstance(groups, dict) or not all(
+                isinstance(names, list) and all(isinstance(name, str) and name for name in names)
+                for names in groups.values()):
+            raise CheckError("malformed Kani harness list")
+        names = [name for group in groups.values() for name in group]
+        if not names:
+            raise CheckError("no proof harnesses found")
+        if len(set(names)) != len(names):
+            raise CheckError("duplicate harness names; select a single crate")
+        bounds = {}
+        for metadata in (work / "target").rglob("*.kani-metadata.json"):
+            for harness in read_json(metadata).get("proof_harnesses", []):
+                name = harness.get("pretty_name")
+                if name in names:
+                    bound = harness.get("attributes", {}).get("unwind_value")
+                    if type(bound) is not int or bound < 1:
+                        raise CheckError(f"{name} needs #[kani::unwind(N)] with N greater than zero")
+                    bounds[name] = bound
+    except (KeyError, TypeError, AttributeError) as error:
+        raise CheckError(f"malformed Kani discovery record: {error!r}") from error
     if set(bounds) != set(names):
         raise CheckError("Kani did not report unwind metadata for every harness")
     return bounds
 
 
+def harness_result(report, kani, name, returncode):
+    """Return the one harness result in report after checking it agrees with itself and the process."""
+    if report.get("metadata", {}).get("version") != "1.0" or report["metadata"].get("kani_version") != kani.version:
+        raise CheckError("unsupported Kani result schema or version")
+    verification = report["verification_results"]
+    summary, results = verification["summary"], verification["results"]
+    if summary["status"] != "completed" or summary["executed"] != 1 or summary["total_harnesses"] != 1:
+        raise CheckError("incomplete Kani verification")
+    if len(results) != 1 or results[0]["harness_id"] != name:
+        raise CheckError("Kani returned an unexpected harness")
+    result = results[0]
+    if not isinstance(result["checks"], list) or not result["checks"]:
+        raise CheckError("Kani returned no property checks")
+    if result["status"] not in {"Success", "Failure"}:
+        raise CheckError("unknown Kani harness status")
+    failed = result["status"] == "Failure"
+    if returncode != int(failed) or summary["failed"] != int(failed) or summary["successful"] != int(not failed):
+        raise CheckError("Kani process and result disagree")
+    return result
+
+
+def classify(check):
+    category, status = check["category"], check["status"]
+    if status not in STATUSES:
+        raise CheckError(f"unknown Kani check status {status}")
+    passes, refutes = OUTCOMES.get(category, PROPERTY_OUTCOMES)
+    if status in passes:
+        return Verdict.PASS
+    return Verdict.REFUTED if status in refutes else Verdict.INCONCLUSIVE
+
+
+def describe(check):
+    location = check["location"]
+    reason = "bound too low: " if check["category"] == "unwind" else ""
+    return (f"{reason}{check['category']} {check['status']}: {check['description']} at "
+            f"{location['file']}:{location['line']}:{location['column']}")
+
+
 def verify(crate, work, kani, name, bound):
+    """Check one harness; a report that is malformed or disagrees with the process is inconclusive."""
     result_file = work / "result.json"
     result_file.unlink(missing_ok=True)
     try:
@@ -118,52 +190,18 @@ def verify(crate, work, kani, name, bound):
                       "-Z", "concrete-playback", "--concrete-playback", "print",
                       "--output-format", "regular")
     except CheckError as error:
-        return False, 0, [str(error)], "", False
+        return Outcome(Verdict.INCONCLUSIVE, 0, [str(error)], "")
     output = done.stdout + done.stderr
     try:
-        report = read_json(result_file)
-        if report.get("metadata", {}).get("version") != "1.0" or report["metadata"].get("kani_version") != kani.version:
-            raise CheckError("unsupported Kani result schema or version")
-        verification = report["verification_results"]
-        summary, results = verification["summary"], verification["results"]
-        if summary["status"] != "completed" or summary["executed"] != 1 or summary["total_harnesses"] != 1:
-            raise CheckError("incomplete Kani verification")
-        if len(results) != 1 or results[0]["harness_id"] != name:
-            raise CheckError("Kani returned an unexpected harness")
-        result = results[0]
-        checks = result["checks"]
-        if not isinstance(checks, list) or not checks:
-            raise CheckError("Kani returned no property checks")
-        failures = []
-        property_failure = False
-        incomplete = False
-        for check in checks:
-            category, status = check["category"], check["status"]
-            if status not in {"Success", "Failure", "Unreachable", "Undetermined", "Satisfied", "Unsatisfiable"}:
-                raise CheckError(f"unknown Kani check status {status}")
-            good = status == "Satisfied" if category == "cover" else status in {"Success", "Unreachable"}
-            if not good:
-                refuted = (category == "cover" and status in {"Unsatisfiable", "Unreachable"}
-                           or category not in {"cover", "unwind"} and status == "Failure")
-                property_failure |= refuted
-                incomplete |= not refuted
-                location = check["location"]
-                reason = "bound too low: " if category == "unwind" else ""
-                failures.append(f"{reason}{category} {status}: {check['description']} at "
-                                f"{location['file']}:{location['line']}:{location['column']}")
-        if result["status"] not in {"Success", "Failure"}:
-            raise CheckError("unknown Kani harness status")
-        expected_failure = result["status"] == "Failure"
-        if done.returncode != int(expected_failure) or summary["failed"] != int(expected_failure) \
-                or summary["successful"] != int(not expected_failure):
-            raise CheckError("Kani process and result disagree")
-        if failures:
-            return False, len(checks), failures, output, property_failure and not incomplete
-        if done.returncode or result["status"] != "Success" or summary["failed"] != 0 or summary["successful"] != 1:
-            raise CheckError("Kani process and result disagree")
-        return True, len(checks), [], output, False
+        result = harness_result(read_json(result_file), kani, name, done.returncode)
+        verdicts = [(check, classify(check)) for check in result["checks"]]
+        verdict = max(verdict for _, verdict in verdicts)
+        if verdict is Verdict.PASS and result["status"] != "Success":
+            raise CheckError("Kani reports a harness failure that no check explains")
+        failures = [describe(check) for check, verdict in verdicts if verdict is not Verdict.PASS]
     except (KeyError, TypeError, AttributeError, CheckError) as error:
-        return False, 0, [f"verification did not complete: {error}"], output, False
+        return Outcome(Verdict.INCONCLUSIVE, 0, [f"verification did not complete: {error}"], output)
+    return Outcome(verdict, len(verdicts), failures, output)
 
 
 def main():
@@ -189,17 +227,17 @@ def main():
             unknown = set(names) - set(bounds)
             if unknown:
                 raise CheckError("unknown harnesses: " + ", ".join(sorted(unknown)))
-        except (CheckError, KeyError, TypeError, AttributeError) as error:
+        except CheckError as error:
             print(f"FAIL {error}")
             return 1
         passed = 0
         for name in names:
-            success, count, failures, output, _ = verify(crate, work, kani, name, bounds[name])
-            passed += success
-            print(f"{'PASS' if success else 'FAIL'} {name} unwind={bounds[name]} checks={count}"
-                  + (": " + "; ".join(failures) if failures else ""))
-            if not success:
-                print(output.rstrip())
+            outcome = verify(crate, work, kani, name, bounds[name])
+            passed += outcome.verdict is Verdict.PASS
+            print(f"{'PASS' if outcome.verdict is Verdict.PASS else 'FAIL'} {name} unwind={bounds[name]} "
+                  f"checks={outcome.checks}" + (": " + "; ".join(outcome.failures) if outcome.failures else ""))
+            if outcome.verdict is not Verdict.PASS:
+                print(outcome.output.rstrip())
         print(f"SUMMARY {passed} of {len(names)} harnesses passed")
         return 0 if passed == len(names) else 1
 
