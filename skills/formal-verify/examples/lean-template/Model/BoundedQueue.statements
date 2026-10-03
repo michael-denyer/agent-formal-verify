@@ -1,0 +1,210 @@
+{
+  "format": 1,
+  "toolchain": "leanprover/lean4:v4.34.1",
+  "module": "Model.BoundedQueue",
+  "declarations": [
+    {
+      "name": "BoundedQueue.Invariant",
+      "kind": "definition",
+      "type": "Nat → BoundedQueue.State → Prop",
+      "typeHash": "7f6d7123a0a67d58d9769af023285e40990096f3ce18de2a1476b31821cb0f12",
+      "valueHash": "e4bb08954609a0a6c94443004be6dfe6c3c5ddf1e7d4565fb28ca3e7c3b2c3a7"
+    },
+    {
+      "name": "BoundedQueue.Invariant.eq_1",
+      "kind": "theorem",
+      "type": "∀ (w : Nat) (s : BoundedQueue.State), BoundedQueue.Invariant w s = (s.consumed ≤ s.next ∧ s.next ≤ s.consumed + w)",
+      "typeHash": "0206d5c005c8713f1ae3d80e748afe65aa3ca4c719821ef4556cb11846ac103a",
+      "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.State",
+      "kind": "inductive",
+      "type": "Type",
+      "typeHash": "7051ab654d793c216d744f7920d98d672357a0efa67248ee75d146d668f60997",
+      "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.State.casesOn",
+      "kind": "definition",
+      "type": "{motive : BoundedQueue.State → Sort u} → (t : BoundedQueue.State) → ((next consumed : Nat) → motive { next := next, consumed := consumed }) → motive t",
+      "typeHash": "f2443861af4c96adb9b59c3c8c6dad2f5c1258667f5e79c44a347ac11dcb5fdc",
+      "valueHash": "21afe345da6ac6f11eecad2f1875a0be6172ff2910c3f64cf8b8ffc5d1781212"
+    },
+    {
+      "name": "BoundedQueue.State.consumed",
+      "kind": "definition",
+      "type": "BoundedQueue.State → Nat",
+      "typeHash": "bbbfd29cdd759823f0fba31f0666becf870163761b000f43bc63c8c72de9ab40",
+      "valueHash": "9e5310ea161fd3438c6f59431515dd89ac1f29c2e6cf705779aff77573ad0bce"
+    },
+    {
+      "name": "BoundedQueue.State.ctorIdx",
+      "kind": "definition",
+      "type": "BoundedQueue.State → Nat",
+      "typeHash": "cae03447894c9e46c6d4ef797067737f0cace1e951603a9b8bf516c5507c1ea6",
+      "valueHash": "7619185feeaae7dd160024b3890ba3f6b7c656dcccf81b8b05ecf60a98cd51ca"
+    },
+    {
+      "name": "BoundedQueue.State.mk",
+      "kind": "constructor",
+      "type": "Nat → Nat → BoundedQueue.State",
+      "typeHash": "997713fd63ff06b3e73a3b0ad98c08f71fd12c7e7b0474e5ac9e4981273b24fb",
+      "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.State.mk.inj",
+      "kind": "theorem",
+      "type": "∀ {next consumed next_1 consumed_1 : Nat}, { next := next, consumed := consumed } = { next := next_1, consumed := consumed_1 } → next = next_1 ∧ consumed = consumed_1",
+      "typeHash": "09255468062662f7a5deff9780ff6206cdda73575f37474889f95e9a43c48b92",
+      "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.State.mk.injEq",
+      "kind": "theorem",
+      "type": "∀ (next consumed next_1 consumed_1 : Nat), ({ next := next, consumed := consumed } = { next := next_1, consumed := consumed_1 }) = (next = next_1 ∧ consumed = consumed_1)",
+      "typeHash": "f58dc272ce6ded4efbba6a9ee06cd6e39da116a9714e7a46919de2dc79530dc9",
+      "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.State.mk.noConfusion",
+      "kind": "definition",
+      "type": "{P : Sort u} → {next consumed next' consumed' : Nat} → { next := next, consumed := consumed } = { next := next', consumed := consumed' } → (next = next' → consumed = consumed' → P) → P",
+      "typeHash": "97800e2ae284f7e76bab7ab1b2279f6a8db991625f0c20f957087fb82f5ec157",
+      "valueHash": "4988e5816849a4d35cf9bcddac605ba0918db05a44c93b0c10b05497fdf596ae"
+    },
+    {
+      "name": "BoundedQueue.State.mk.sizeOf_spec",
+      "kind": "theorem",
+      "type": "∀ (next consumed : Nat), sizeOf { next := next, consumed := consumed } = 1 + sizeOf next + sizeOf consumed",
+      "typeHash": "9339a3adca0afc6d6cc57108abbdebb319d443a581efcb80e6c29a08c217c009",
+      "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.State.next",
+      "kind": "definition",
+      "type": "BoundedQueue.State → Nat",
+      "typeHash": "bbbfd29cdd759823f0fba31f0666becf870163761b000f43bc63c8c72de9ab40",
+      "valueHash": "aaf20a3f59545a05454937b3dcd8d30c5b7512b4b7f4ae1f908be84e65d76f03"
+    },
+    {
+      "name": "BoundedQueue.State.noConfusion",
+      "kind": "definition",
+      "type": "{P : Sort u} → {t t' : BoundedQueue.State} → t = t' → BoundedQueue.State.noConfusionType P t t'",
+      "typeHash": "933e4450718c4893f16a7854f50df3a73a01c27948e1fd89029a5df49696cfe6",
+      "valueHash": "6f05590674fcdd808792a51651d9f34f4552805303b7fdbb1c0ed045e3dd4ce2"
+    },
+    {
+      "name": "BoundedQueue.State.noConfusionType",
+      "kind": "definition",
+      "type": "Sort u → BoundedQueue.State → BoundedQueue.State → Sort u",
+      "typeHash": "a54a36ba2814eb27334bce8bd22ec820d9d6afb559632c858f5fc98c2577e42a",
+      "valueHash": "c1a3cd0f1c629a59edffb1be5f0e247af6f3b57a2251806913d5e7eece185c19"
+    },
+    {
+      "name": "BoundedQueue.State.rec",
+      "kind": "recursor",
+      "type": "{motive : BoundedQueue.State → Sort u} → ((next consumed : Nat) → motive { next := next, consumed := consumed }) → (t : BoundedQueue.State) → motive t",
+      "typeHash": "d83cb3f391cc467f6433e1bf828e2eada208425aeaff66b22c6c56c85b5f5060",
+      "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.State.recOn",
+      "kind": "definition",
+      "type": "{motive : BoundedQueue.State → Sort u} → (t : BoundedQueue.State) → ((next consumed : Nat) → motive { next := next, consumed := consumed }) → motive t",
+      "typeHash": "f2443861af4c96adb9b59c3c8c6dad2f5c1258667f5e79c44a347ac11dcb5fdc",
+      "valueHash": "5912d2fc14c4a15b2b4500ffb0a99dfaa76036d71387f494aa10ea54dab1499c"
+    },
+    {
+      "name": "BoundedQueue.badPairs",
+      "kind": "definition",
+      "type": "Nat → Nat → List (BoundedQueue.State × BoundedQueue.State)",
+      "typeHash": "3c10f9d3b1db7f38259addbb30531e138707750920468a6f0851dd61966e35c3",
+      "valueHash": "f4ea50706c2cab92ccb7adb7430dbda79d1a6ae4ec7d67538eee2a6adf47878d"
+    },
+    {
+      "name": "BoundedQueue.badPairs.match_1",
+      "kind": "definition",
+      "type": "(motive : Option BoundedQueue.State → Sort u_1) → (t : Option BoundedQueue.State) → ((t' : BoundedQueue.State) → motive (some t')) → (Unit → motive none) → motive t",
+      "typeHash": "af98a4e3bf5e18322b9281d582642a70793e0eb5ce6780696c448cbf28256cce",
+      "valueHash": "5a81df6301de8bfb10f9c6d532962b792c2bf02848535c54a352efb8d7c52960"
+    },
+    {
+      "name": "BoundedQueue.claim",
+      "kind": "definition",
+      "type": "Nat → BoundedQueue.State → Option BoundedQueue.State",
+      "typeHash": "ce0ec27d70cc751f072bec48d351ec1e4129798bb5fc924940c13fdb73df5a66",
+      "valueHash": "27a40e216ac16aaa54eb0fcd468afaaa8e3146c045c9ed613569fb0a50fbd452"
+    },
+    {
+      "name": "BoundedQueue.claim_keeps_invariant",
+      "kind": "theorem",
+      "type": "∀ (w : Nat) (s t : BoundedQueue.State), BoundedQueue.Invariant w s → BoundedQueue.claim w s = some t → BoundedQueue.Invariant w t",
+      "typeHash": "a62ef6d7676b1be25d6f5adc855db00967122a1664301f089eddcbc5b7425716",
+      "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.consume",
+      "kind": "definition",
+      "type": "BoundedQueue.State → Option BoundedQueue.State",
+      "typeHash": "aeecfb7bd56e6897ed7692f84061986f35608092a6547ba9a1ae859dc4283b12",
+      "valueHash": "e5ab33e5a4f3a68861b449e4b583c462722fbdd2fd7679f895c43b50065f90ac"
+    },
+    {
+      "name": "BoundedQueue.consume_keeps_invariant",
+      "kind": "theorem",
+      "type": "∀ (w : Nat) (s t : BoundedQueue.State), BoundedQueue.Invariant w s → BoundedQueue.consume s = some t → BoundedQueue.Invariant w t",
+      "typeHash": "8f97727457cdc622aff37bd77a07265ab79e8ad8c1fe7124db33cef3aacc0b3f",
+      "valueHash": null
+    },
+    {
+      "name": "BoundedQueue.instDecidableEqState",
+      "kind": "definition",
+      "type": "DecidableEq BoundedQueue.State",
+      "typeHash": "06c5a8edbbf9beb122dc7830a0e11931853a9fd05d4984331542f0884501d835",
+      "valueHash": "137a651036de8a18c4a5cc31a4a40e9a4130d50219398504c8cc359030cf9c6b"
+    },
+    {
+      "name": "BoundedQueue.instDecidableEqState.decEq",
+      "kind": "definition",
+      "type": "(x x_1 : BoundedQueue.State) → Decidable (x = x_1)",
+      "typeHash": "8531b2382ae34b8efc683e26a7ef9b3d7eb9bc72ecf7ec04de44b10577f96d3a",
+      "valueHash": "b77489c2b7eef9f5c4c26fa0d4fc4849e5f3e90b9f1bc001c0644fae2be4c6fd"
+    },
+    {
+      "name": "BoundedQueue.instDecidableEqState.decEq.match_1",
+      "kind": "definition",
+      "type": "(motive : BoundedQueue.State → BoundedQueue.State → Sort u_1) → (x x_1 : BoundedQueue.State) → ((a a_1 b b_1 : Nat) → motive { next := a, consumed := a_1 } { next := b, consumed := b_1 }) → motive x x_1",
+      "typeHash": "a3593a5bf4fe863d9a64998e6820f9d4d108b25b8a7dbadc85895186e774b0bd",
+      "valueHash": "9938283ca2f3a004ce3d845ec5013b7a5b671dac2e76a444a175a76b5e28796a"
+    },
+    {
+      "name": "BoundedQueue.instDecidableInvariant",
+      "kind": "definition",
+      "type": "(w : Nat) → (s : BoundedQueue.State) → Decidable (BoundedQueue.Invariant w s)",
+      "typeHash": "04b7bb778b49e9337525f4cb71ee399b09960728d2154197b42ddf9f44247355",
+      "valueHash": "b0c21faa7f519bd0483301cda586379ac7eed4c34b52d5c02081d693f27eb0f6"
+    },
+    {
+      "name": "BoundedQueue.instReprState",
+      "kind": "definition",
+      "type": "Repr BoundedQueue.State",
+      "typeHash": "cc4f1074709058984296a7090336a909996862b05ceaa659fb2714254d4b5f0e",
+      "valueHash": "d411d742a2ff4af32ee854e0d80b38c5acb33ac8d828e8d83dceccae492d31f8"
+    },
+    {
+      "name": "BoundedQueue.instReprState.repr",
+      "kind": "definition",
+      "type": "BoundedQueue.State → Nat → Format",
+      "typeHash": "700f66986ba7aeda51c7c71c8340b2c36cf1c1ad3f9fc3f3f70278f45f699195",
+      "valueHash": "3f1a0346f8b54aa716d2e8a2077b44b52ff47cc4278e1dc690727f54347b904f"
+    },
+    {
+      "name": "BoundedQueue.invariant_init",
+      "kind": "theorem",
+      "type": "∀ (w : Nat), BoundedQueue.Invariant w { next := 0, consumed := 0 }",
+      "typeHash": "4b1f7285f830075fb2bcc18109f32754cf395e0c65621d765f0d5164ad92c5c5",
+      "valueHash": null
+    }
+  ]
+}

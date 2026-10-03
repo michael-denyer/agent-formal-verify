@@ -288,7 +288,8 @@ function leanFixture(log, { status = 0, audit = audited, files = [] } = {}) {
     `[ ${status} -ne 0 ] || for target; do target=\${target#"$TASK_PROJECT/"}; echo "/physical/.lake/build/lib/lean/\${target%.lean:olean}.olean"; done`,
     `cat "${join(logs, log)}" >&2; exit ${status}`,
   ].join("\n"));
-  return { dir, project, result: run(dir, "lean-check.sh", [project, ...files], { TASK_AUDIT: audit, TASK_BUILT: join(dir, "built"), TASK_PROJECT: project }) };
+  const check = (args = files, output = audit) => run(dir, "lean-check.sh", [project, ...args], { TASK_AUDIT: output, TASK_BUILT: join(dir, "built"), TASK_PROJECT: project });
+  return { dir, project, check, result: check() };
 }
 
 test("the Lean checker prints multi-line search output whole and ignores error text in output", () => {
@@ -355,6 +356,108 @@ test("the Lean checker builds and audits only the files it is given, and says so
   includes(result.stdout, `PASS ${project} (Model/Sub.lean only): 37 declarations checked`);
   const missing = leanFixture("lake-search.log", { files: ["Model/Gone.lean"] });
   assert.equal(missing.result.stdout, `FAIL ${missing.project}/Model/Gone.lean does not exist\n`);
+});
+
+const statement = (name, kind = "theorem", typeExpr = "type", valueExpr = null, module = "Model") =>
+  "STATEMENT " + JSON.stringify({ module, name, kind, typeExpr, valueExpr, type: typeExpr });
+const statementAudit = (...records) => [...records, audited].join("\n");
+
+test("the Lean checker freezes unfinished statements deterministically without claiming a proof pass", () => {
+  const audit = statementAudit(statement("later"), statement("earlier", "definition", "Nat", "one"));
+  const { project, check } = leanFixture("lake-sorry.log", { audit });
+  const first = check(["--freeze", "Model.lean"]);
+  assert.equal(first.status, 0, first.stdout);
+  includes(first.stdout, "FROZEN ");
+  excludes(first.stdout, "PASS ");
+  const path = join(project, "Model.statements");
+  const frozen = readFileSync(path, "utf8");
+  assert.equal(JSON.parse(frozen).toolchain, "leanprover/lean4:v4.34.1");
+  assert.deepEqual(JSON.parse(frozen).declarations.map((d) => d.name), ["earlier", "later"]);
+  assert.equal(check(["--freeze", "Model.lean"]).status, 0);
+  assert.equal(readFileSync(path, "utf8"), frozen);
+  assert.equal(existsSync(join(project, "Model/Sub.statements")), false);
+  assert.equal(check(["Model.lean"]).status, 1);
+});
+
+for (const [label, changed] of [
+  ["theorem type", statementAudit(statement("property", "theorem", "weaker"), statement("step", "definition", "Nat", "one"))],
+  ["definition value", statementAudit(statement("property"), statement("step", "definition", "Nat", "two"))],
+  ["deleted declaration", statementAudit(statement("step", "definition", "Nat", "one"))],
+]) {
+  test(`the Lean checker rejects a frozen ${label} change and allows it after explicit re-freeze`, () => {
+    const audit = statementAudit(statement("property"), statement("step", "definition", "Nat", "one"));
+    const { check } = leanFixture("lake-search.log", { audit });
+    assert.equal(check(["--freeze", "Model.lean"]).status, 0);
+    const result = check(["Model.lean"], changed);
+    assert.equal(result.status, 1, result.stdout);
+    includes(result.stdout, "FROZEN ");
+    includes(result.stdout, "statement changed");
+    excludes(result.stdout, "PASS ");
+    assert.equal(check(["--freeze", "Model.lean"], changed).status, 0);
+    assert.equal(check(["Model.lean"], changed).status, 0);
+  });
+}
+
+test("the Lean checker allows added declarations and checks only selected frozen modules", () => {
+  const audit = statementAudit(statement("property"), statement("other", "theorem", "type", null, "Model.Sub"));
+  const { check, project } = leanFixture("lake-search.log", { audit });
+  assert.equal(check(["--freeze"]).status, 0);
+  assert.ok(existsSync(join(project, "Model/Sub.statements")));
+  assert.equal(check(["Model.lean"], statementAudit(statement("property"), statement("newLemma"))).status, 0);
+  const result = check([], statementAudit(statement("property"), statement("other", "theorem", "changed", null, "Model.Sub")));
+  assert.equal(result.status, 1);
+  includes(result.stdout, "FROZEN other: statement changed");
+});
+
+test("the Lean checker names every frozen declaration when a model becomes empty", () => {
+  const { check } = leanFixture("lake-search.log", { audit: statementAudit(statement("property")) });
+  assert.equal(check(["--freeze", "Model.lean"]).status, 0);
+  const result = check(["Model.lean"], "AUDITED 0 declarations");
+  assert.equal(result.status, 1);
+  includes(result.stdout, "FROZEN property: statement changed");
+  includes(result.stdout, "(deleted)");
+});
+
+test("freezing rejects ambiguous private identities without replacing any source's record", () => {
+  const audit = statementAudit(statement("property"), statement("other", "theorem", "type", null, "Model.Sub"));
+  const { check, project } = leanFixture("lake-search.log", { audit });
+  assert.equal(check(["--freeze"]).status, 0);
+  const path = join(project, "Model.statements");
+  const original = readFileSync(path, "utf8");
+  const ambiguous = statementAudit(statement("property", "theorem", "changed"), statement("other", "theorem", "type", null, "Model.Sub"), statement("other", "theorem", "duplicate", null, "Model.Sub"));
+  const result = check(["--freeze"], ambiguous);
+  assert.equal(result.status, 1);
+  includes(result.stdout, "ambiguous declaration identity other in Model.Sub");
+  assert.equal(readFileSync(path, "utf8"), original);
+});
+
+test("the Lean checker detects a deleted frozen source in project scope but leaves named scope independent", () => {
+  const audit = statementAudit(statement("property"), statement("other", "theorem", "type", null, "Model.Sub"));
+  const { check, project } = leanFixture("lake-search.log", { audit });
+  assert.equal(check(["--freeze"]).status, 0);
+  rmSync(join(project, "Model/Sub.lean"));
+  const result = check();
+  assert.equal(result.status, 1);
+  includes(result.stdout, "FROZEN other: statement changed (source deleted)");
+  assert.equal(check(["Model.lean"]).status, 0);
+  rmSync(join(project, "Model.lean"));
+  includes(check().stdout, "FROZEN property: statement changed (source deleted)");
+});
+
+test("the Lean checker rejects malformed records and a changed toolchain", () => {
+  const audit = statementAudit(statement("property"));
+  const { project, check } = leanFixture("lake-search.log", { audit });
+  assert.equal(check(["--freeze", "Model.lean"]).status, 0);
+  const path = join(project, "Model.statements");
+  const frozen = JSON.parse(readFileSync(path, "utf8"));
+  frozen.toolchain = "leanprover/lean4:v4.20.0";
+  writeFileSync(path, JSON.stringify(frozen));
+  const bump = check(["Model.lean"]);
+  assert.equal(bump.status, 1);
+  includes(bump.stdout, "toolchain changed");
+  includes(bump.stdout, "--freeze");
+  writeFileSync(path, "{}");
+  assert.equal(check(["Model.lean"]).status, 1);
 });
 
 function tlaMutations(checks, mutations, log = "tlc-invariant.log") {
@@ -563,4 +666,14 @@ test("the pinned TLC help command may return 1 after printing its help", () => {
   const result = run(dir, "setup.sh", ["tla"], { JAVA: java, TLC_JAR: jar });
   assert.equal(result.status, 0, result.stdout);
   includes(result.stdout, "READY TLC");
+});
+
+
+test("frozen statements work with the existing system Python", () => {
+  const audit = statementAudit(statement("property"));
+  const { dir, check } = leanFixture("lake-search.log", { audit });
+  command(dir, "python3", '/usr/bin/python3 "$@"');
+  const frozen = check(["--freeze", "Model.lean"]);
+  assert.equal(frozen.status, 0, frozen.stdout + frozen.stderr);
+  assert.equal(check(["Model.lean"]).status, 0);
 });

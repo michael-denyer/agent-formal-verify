@@ -90,4 +90,89 @@ echo 'theorem unproved : (10 : Nat) < 3 := sorry' > "$work/lean/Scratch/Model/Bo
 rejected bash "$scripts/lean-check.sh" "$work/lean" | tee "$work/lean.out"
 grep -q "unknown module source path .*/Scratch/Model/BoundedQueue.lean" "$work/lean.out"
 
+mkdir -p "$work/frozen/Model"
+cp "$examples/lean-template"/{lakefile.toml,lake-manifest.json,lean-toolchain} "$work/frozen/"
+cat > "$work/frozen/Model/Frozen.lean" <<'EOF'
+namespace Frozen
+def step (n : Nat) : Nat := n + 1
+theorem property : (n : Nat) → n = n
+  | 0 => rfl
+  | _ + 1 => rfl
+end Frozen
+EOF
+cp "$work/frozen/Model/Frozen.lean" "$work/frozen/original"
+bash "$scripts/lean-check.sh" "$work/frozen" --freeze Model/Frozen.lean
+cp "$work/frozen/Model/Frozen.statements" "$work/frozen/first-record.json"
+bash "$scripts/lean-check.sh" "$work/frozen" --freeze Model/Frozen.lean
+cmp "$work/frozen/first-record.json" "$work/frozen/Model/Frozen.statements"
+bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean
+
+# Replacing an equation proof removes its generated matcher, not its statement.
+cat > "$work/frozen/Model/Frozen.lean" <<'EOF'
+namespace Frozen
+def step (n : Nat) : Nat := n + 1
+theorem property : (n : Nat) → n = n := fun _ => rfl
+theorem added : True := by trivial
+end Frozen
+EOF
+bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean
+cp "$work/frozen/Model/Frozen.lean" "$work/frozen/proved"
+
+sed 's|: (n : Nat) → n = n := fun _ => rfl|: True := by trivial|' "$work/frozen/proved" > "$work/frozen/Model/Frozen.lean"
+rejected bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean | tee "$work/frozen.out"
+grep -q '^FROZEN Frozen.property: statement changed' "$work/frozen.out"
+sed 's|n + 1|n + 2|' "$work/frozen/proved" > "$work/frozen/Model/Frozen.lean"
+rejected bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean | tee "$work/frozen.out"
+grep -q '^FROZEN Frozen.step: statement changed' "$work/frozen.out"
+sed '/^theorem property/d' "$work/frozen/proved" > "$work/frozen/Model/Frozen.lean"
+rejected bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean | tee "$work/frozen.out"
+grep -q '^FROZEN Frozen.property: statement changed' "$work/frozen.out"
+grep -q '(deleted)' "$work/frozen.out"
+printf '\n' > "$work/frozen/Model/Frozen.lean"
+rejected bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean | tee "$work/frozen.out"
+grep -q '^FROZEN Frozen.property: statement changed' "$work/frozen.out"
+grep -q '^FROZEN Frozen.step: statement changed' "$work/frozen.out"
+
+sed 's|fun _ => rfl|sorry|' "$work/frozen/proved" > "$work/frozen/Model/Frozen.lean"
+bash "$scripts/lean-check.sh" "$work/frozen" --freeze Model/Frozen.lean | tee "$work/frozen.out"
+! grep -q '^PASS ' "$work/frozen.out"
+rejected bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean | tee "$work/frozen.out"
+grep -q 'sorryAx' "$work/frozen.out"
+cp "$work/frozen/proved" "$work/frozen/Model/Frozen.lean"
+bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean
+printf 'axiom cheat : False\ntheorem bogus : False := cheat\n' >> "$work/frozen/Model/Frozen.lean"
+rejected bash "$scripts/lean-check.sh" "$work/frozen" --freeze Model/Frozen.lean | tee "$work/frozen.out"
+grep -q '^AXIOMS ' "$work/frozen.out"
+
+cat > "$work/frozen/Model/Frozen.lean" <<'EOF'
+namespace Frozen
+private def step (n : Nat) : Nat := n + 1
+theorem property : step 1 = 2 := by rfl
+end Frozen
+EOF
+bash "$scripts/lean-check.sh" "$work/frozen" --freeze Model/Frozen.lean
+sed -i.orig '/namespace Frozen/a\
+private def earlier : Nat := 7
+' "$work/frozen/Model/Frozen.lean"
+bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean
+
+cat > "$work/frozen/Model/Frozen.lean" <<'EOF'
+namespace Frozen
+theorem property : True := by trivial
+def property.match_99 : Nat := 1
+end Frozen
+EOF
+bash "$scripts/lean-check.sh" "$work/frozen" --freeze Model/Frozen.lean
+sed -i.orig 's|: Nat := 1|: Nat := 2|' "$work/frozen/Model/Frozen.lean"
+rejected bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean | tee "$work/frozen.out"
+grep -q '^FROZEN Frozen.property.match_99: statement changed' "$work/frozen.out"
+cp "$work/frozen/Model/Frozen.lean.orig" "$work/frozen/Model/Frozen.lean"
+
+printf 'namespace Other\ntheorem property : True := by trivial\nend Other\n' > "$work/frozen/Model/Other.lean"
+bash "$scripts/lean-check.sh" "$work/frozen" --freeze
+rm "$work/frozen/Model/Other.lean"
+rejected bash "$scripts/lean-check.sh" "$work/frozen" | tee "$work/frozen.out"
+grep -q '^FROZEN Other.property: statement changed (source deleted)' "$work/frozen.out"
+bash "$scripts/lean-check.sh" "$work/frozen" Model/Frozen.lean
+
 echo "ok: both examples pass and detect their mutations; the weakened guards, a hidden axiom, clashing names and an unowned file are rejected"
