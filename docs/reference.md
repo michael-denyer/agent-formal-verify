@@ -5,7 +5,7 @@
 | Skill | Claude Code command | Purpose |
 | --- | --- | --- |
 | `setup` | `/agent-formal-verify:setup` | Prepare the complete shared toolset once |
-| `formal-verify` | `/agent-formal-verify:formal-verify` | Model-check protocols and prove sequential invariants |
+| `formal-verify` | `/agent-formal-verify:formal-verify` | Model-check protocols, prove invariants and check bounded Rust functions |
 
 In Codex, type `$` and pick the skill, run `/skills`, or request the skill by name. The plugin ships no Codex prompts or slash commands. Parallel targets use the host's agent tools and your configured models. Hosts without delegation can process targets sequentially.
 
@@ -23,7 +23,7 @@ Installing the plugin adds skills and helpers. Run setup to prepare the verifica
 
 ## Runtime setup and tool pins
 
-The [setup skill](../skills/setup/SKILL.md) prepares a working JDK, Python 3, a SHA256 tool, elan, Lean and the pinned TLC JAR. It reuses existing prerequisites and installs missing ones through your package manager or the upstream documented installer, within your installation constraints. It prepares both verification tools and needs no target repository.
+The [setup skill](../skills/setup/SKILL.md) prepares a working JDK, Python 3, a SHA256 tool, elan, Lean, Rust, Kani and the pinned TLC JAR. It reuses existing prerequisites and installs missing ones through your package manager or the upstream documented installer, within your installation constraints. It prepares all three verification tools and needs no target repository.
 
 [Tool setup](../skills/formal-verify/references/setup.md) is the reference for everything after that first run: how verification prepares a changed Lean pin or tool version without a setup rerun, what global installations share, where caches live, the version pins, the direct helper commands, environment settings and CI.
 
@@ -49,7 +49,7 @@ Tool caches survive plugin updates. Run setup again only if a release introduces
 
 ## Scope and evidence
 
-The [verification skill](../skills/formal-verify/SKILL.md) directs the agent to select protocols and sequential invariants, transcribe their behaviour, and check their properties. It uses TLC to explore bounded instances, and Lean to evaluate bounded searches and prove properties for every size.
+The [verification skill](../skills/formal-verify/SKILL.md) directs the agent to select protocols and sequential invariants, transcribe their behaviour, and check their properties. It uses TLC to explore bounded protocol instances, Lean to prove properties for every size, and Kani to check actual Rust functions within stated input and unwind bounds. Kani requires satisfied cover conditions so an over-constrained harness cannot pass without reaching its boundary state.
 
 A helper that cannot run a tool prints `UNAVAILABLE` and exits 3. Report that target as "not checked" with the remedy, never as a pass or a model failure. Failed checks exit 1 and usage errors exit 2.
 
@@ -57,6 +57,6 @@ Before reporting a pass, it requires mutations that demonstrate the properties d
 
 For a closed Lean proof, reports give the number of differential vectors that agree with the production function and the integer widths, or say that the comparison was not run. Each counter-example is labelled `reproduced`, `reachable at shipped settings`, or `model-only`, according to the production evidence.
 
-Replies, pull requests and documents are written for a reader who knows the code and has used neither tool. They lead with what goes wrong in the code, state each property as what it guarantees, and say what a TLC pass, a Lean proof and a detected mutation each mean.
+Replies, pull requests and documents are written for a reader who knows the code and has used none of these tools. They lead with what goes wrong in the code, state each property as what it guarantees, and say what a TLC pass, a Lean proof and a detected mutation each mean.
 
 A passing model establishes its stated properties under its assumptions. Reports must identify omitted code constraints and unfinished proofs. These models do not check memory ordering below the mutex; keep ThreadSanitizer or race-detector checks. They do not establish correctness of the entire program or guarantee a particular number of discovered bugs.

@@ -1,0 +1,136 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "timestamp": "2026-10-03T13:55:59.343492Z",
+    "kani_version": "0.68.0",
+    "target": "aarch64-apple-darwin",
+    "build_mode": "release"
+  },
+  "project": {
+    "crate_name": [
+      "kani_experiment"
+    ],
+    "workspace_root": "/tmp/kani-fixture",
+    "output_dir": "/tmp/kani-fixture/target/kani/aarch64-apple-darwin/debug/build/kani-experiment/fd914a28f6ee1533/out"
+  },
+  "tools": {
+    "kani": "0.68.0",
+    "rustc": "rustc 1.100.0-nightly (8925ea358 2026-08-20)",
+    "cbmc": "6.11.0 (cbmc-6.11.0)",
+    "goto_cc": "clang version 21.0.0 (goto-cc 6.11.0 (cbmc-6.11.0))",
+    "goto_instrument": "6.11.0 (cbmc-6.11.0)",
+    "solvers": [
+      {
+        "name": "cadical",
+        "version": null
+      }
+    ]
+  },
+  "harness_metadata": [
+    {
+      "pretty_name": "proofs::unreachable_cover",
+      "mangled_name": "_RNvNtCslKp4u7fIIuQ_15kani_experiment6proofs17unreachable_cover",
+      "crate_name": "kani_experiment",
+      "source": {
+        "file": "src/lib.rs",
+        "start_line": 40,
+        "end_line": 44
+      },
+      "goto_file": "/tmp/kani-fixture/target/kani/aarch64-apple-darwin/debug/build/kani-experiment/fd914a28f6ee1533/out/kani_experiment-fd914a28f6ee1533__RNvNtCslKp4u7fIIuQ_15kani_experiment6proofs17unreachable_cover.symtab.out",
+      "attributes": {
+        "kind": "Proof",
+        "should_panic": false
+      },
+      "contract": {
+        "contracted_function_name": null,
+        "recursion_tracker": null
+      },
+      "has_loop_contracts": false,
+      "is_automatically_generated": false,
+      "is_bounded": false,
+      "is_ctor_based": false
+    }
+  ],
+  "error_details": [
+    {
+      "harness_id": "proofs::unreachable_cover",
+      "has_errors": false
+    }
+  ],
+  "property_details": [
+    {
+      "harness_id": "proofs::unreachable_cover",
+      "property_details": {
+        "total_properties": 1,
+        "passed": 0,
+        "failed": 0,
+        "unreachable": 1,
+        "undetermined": 0,
+        "solver_error": 0,
+        "satisfied": 0,
+        "unsatisfiable": 0,
+        "covered": 0,
+        "uncovered": 0
+      }
+    }
+  ],
+  "cbmc": [
+    {
+      "harness_id": "proofs::unreachable_cover",
+      "cbmc_metadata": {
+        "version": "6.11.0",
+        "os_info": "aarch64 macos unix"
+      },
+      "configuration": {
+        "object_bits": 16,
+        "solver": "cadical"
+      },
+      "cbmc_stats": {
+        "runtime_symex_s": 0.000484625,
+        "size_program_expression": 81,
+        "slicing_removed_assignments": 41,
+        "vccs_generated": 0,
+        "vccs_remaining": 0,
+        "runtime_postprocess_equation_s": 0.000014166,
+        "runtime_convert_ssa_s": null,
+        "runtime_post_process_s": null,
+        "runtime_solver_s": null,
+        "runtime_decision_procedure_s": null
+      }
+    }
+  ],
+  "verification_results": {
+    "summary": {
+      "total_harnesses": 1,
+      "executed": 1,
+      "status": "completed",
+      "successful": 1,
+      "failed": 0,
+      "duration_ms": 3
+    },
+    "results": [
+      {
+        "harness_id": "proofs::unreachable_cover",
+        "status": "Success",
+        "duration_ms": 3,
+        "checks": [
+          {
+            "id": 1,
+            "function": "proofs::unreachable_cover",
+            "status": "Unreachable",
+            "description": "unreachable boundary",
+            "location": {
+              "file": "src/lib.rs",
+              "line": "43",
+              "column": "9"
+            },
+            "category": "cover"
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "enabled": false
+  }
+}

@@ -1,0 +1,79 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling kani-experiment v0.1.0 (/tmp/kani-fixture)
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+Checking harness proofs::failure...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /tmp/kani-fixture/target/kani/aarch64-apple-darwin/debug/build/kani-experiment/f4ccecc1754b9ead/out/kani_experiment-f4ccecc1754b9ead__RNvNtCslKp4u7fIIuQ_15kani_experiment6proofs7failure.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Runtime Symex: 0.000589667s
+size of program expression: 98 steps
+simple slicing removed 4 assignments
+Generated 2 VCC(s), 2 remaining after simplification
+Runtime Postprocess Equation: 1.3125e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.000104625s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 5.291e-06s
+Solving with CaDiCaL 3.0.0
+98 variables, 45 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 3.0209e-05s
+Runtime decision procedure: 0.000155792s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+99 variables, 46 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 1.4583e-05s
+Runtime decision procedure: 2.45e-05s
+
+RESULTS:
+Check 1: proofs::failure.assertion.1
+	 - Status: FAILURE
+	 - Description: "assertion failed: x < 9"
+	 - Location: src/lib.rs:16:9 in function proofs::failure
+
+
+SUMMARY:
+ ** 1 of 1 failed
+Failed Checks: assertion failed: x < 9
+ File: "src/lib.rs", line 16, in proofs::failure
+
+VERIFICATION:- FAILED
+Verification Time: 0.005880375s
+
+Concrete playback unit test for `proofs::failure`:
+```
+/// Test generated for harness `proofs::failure`
+///
+/// Check for `assertion`: "assertion failed: x < 9"
+
+#[test]
+fn kani_concrete_playback_failure_15909454191557280622() {
+    let concrete_vals: Vec<Vec<u8>> = vec![
+        // 9
+        vec![9],
+    ];
+    kani::concrete_playback_run(concrete_vals, failure);
+}
+```
+INFO: To automatically add the concrete playback unit test(s) to the src code, run Kani with `--concrete-playback=inplace`.
+Manual Harness Summary:
+Verification failed for - proofs::failure
+Complete - 0 successfully verified harnesses, 1 failures, 1 total.

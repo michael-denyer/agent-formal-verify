@@ -1,6 +1,6 @@
 # Tool setup
 
-Run `/agent-formal-verify:setup` once to prepare Java, Python, TLC, elan and Lean. In Codex, request this plugin's `setup` skill. The [setup skill](../../setup/SKILL.md) prepares both verification tools independently of any repository and reuses existing runtimes and caches.
+Run `/agent-formal-verify:setup` once to prepare Java, Python, TLC, elan, Lean, Rust and Kani. In Codex, request this plugin's `setup` skill. The [setup skill](../../setup/SKILL.md) prepares all three verification tools independently of any repository and reuses existing runtimes and caches.
 
 The formal-verify skill selects tools from the current repository on every invocation. It reuses prepared tools and installs a missing Lean toolchain through the setup helper when a Lean pin changes. Repository changes do not require the user to rerun the full setup.
 
@@ -25,6 +25,25 @@ The plugin does not download TLC. Save `tla2tools.jar` from the [TLA+ release](h
 The matrix runner requires the JAR and a working Java runtime. It checks Python 3 before running, so a failing model can always print its reduced trace. It does not download tools. Each run checks the formula its spec names `Spec` and sees only the modules beside that spec. `TLC_WORKERS` controls the TLC worker count.
 
 The mutation runner reads `Name.mutations` beside `Name.tla` and `Name.matrix`. For each mutation it copies the spec, replaces the listed text, and runs the matrix runner with the one property the mutation names, so it needs the same tools and settings.
+
+## Rust and Kani
+
+Install Rust and Cargo, then install Kani 0.68.0, the version pinned in [`scripts/bmc.py`](../scripts/bmc.py):
+
+```shell
+cargo install --locked kani-verifier --version 0.68.0
+cargo kani setup
+bash <skill-dir>/scripts/setup.sh bmc
+bash <skill-dir>/scripts/bmc-check.sh /path/to/crate
+bash <skill-dir>/scripts/bmc-check.sh /path/to/crate proofs::claim_keeps_invariant
+python3 <skill-dir>/scripts/mutate.py /path/to/crate/src/lib.mutations
+```
+
+Kani supports Linux and macOS on x86_64 and aarch64. See the [pinned installation guide](https://github.com/model-checking/kani/blob/kani-0.68.0/docs/src/install-guide.md) for system prerequisites. The plugin downloads and installs no Kani runtime. `setup.sh bmc` checks the complete pinned bundle and invokes its driver directly. Verification and mutations reuse that driver with its bundled Rust toolchain. They never invoke the auto-installing Cargo wrapper, so the Cargo installer registration is unnecessary after setup. A relative `KANI_HOME` resolves against the caller's directory.
+
+The Rust checker discovers proof harnesses and checks each selected harness separately. It reports the unwind bound and check count, rejects an insufficient bound and any cover condition that was not satisfied, and prints a concrete playback test for a failed assertion when Kani can produce one. Larger inputs and loops remain outside the reported bounds. Crate builds may obtain dependencies declared in Cargo; the template has none.
+
+The mutation runner reads `Name.mutations` beside `Name.rs`, copies the whole crate to a temporary directory, and checks the harness named by `detects`. It leaves the source crate unchanged. Each harness must have a mutation that its property detects.
 
 ## Lean 4
 

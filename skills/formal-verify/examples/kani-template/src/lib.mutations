@@ -1,0 +1,11 @@
+# Copyright (c) 2026 Michael Denyer
+# SPDX-License-Identifier: GPL-3.0-only
+mutation claim past the full window
+detects proofs::claim_keeps_invariant
+-     if state.next < state.consumed + window {
++     if state.next <= state.consumed + window {
+
+mutation consume from the empty queue
+detects proofs::consume_keeps_invariant
+-     if state.consumed < state.next {
++     if state.consumed <= state.next {

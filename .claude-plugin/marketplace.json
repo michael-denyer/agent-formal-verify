@@ -4,13 +4,24 @@
     "name": "Michael Denyer",
     "url": "https://github.com/michael-denyer"
   },
-  "description": "TLA+ model checking and Lean proofs.",
+  "description": "Model-check protocols with TLA+, prove invariants with Lean 4, and check bounded Rust functions with Kani.",
   "plugins": [
     {
       "name": "agent-formal-verify",
       "source": "./",
-      "version": "0.2.8",
-      "description": "Model-check thread protocols with TLA+ and prove sequential invariants with Lean 4."
+      "version": "0.3.0",
+      "description": "Model-check protocols with TLA+, prove invariants with Lean 4, and check bounded Rust functions with Kani.",
+      "keywords": [
+        "agent-formal-verify",
+        "tla-plus",
+        "tlc",
+        "lean",
+        "kani",
+        "rust",
+        "model-checking",
+        "proofs",
+        "skills"
+      ]
     }
   ]
 }

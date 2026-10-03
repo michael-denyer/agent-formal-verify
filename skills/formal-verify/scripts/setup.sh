@@ -12,6 +12,12 @@ case ${1:-} in
     tlc_jar_ready
     echo "READY TLC $TLC_JAR"
     ;;
+  bmc)
+    [ "$#" -eq 1 ] || { echo "usage: setup.sh bmc"; exit 2; }
+    # shellcheck source=skills/formal-verify/scripts/bmc-tools.sh
+    source "$HERE/bmc-tools.sh"
+    kani_run --ready
+    ;;
   lean)
     [ "$#" -eq 2 ] || { echo "usage: setup.sh lean <lake-project-dir>"; exit 2; }
     dir=$2
@@ -26,5 +32,5 @@ case ${1:-} in
     fi
     echo "READY Lean $toolchain"
     ;;
-  *) echo "usage: setup.sh tla | setup.sh lean <lake-project-dir>"; exit 2 ;;
+  *) echo "usage: setup.sh tla | setup.sh lean <lake-project-dir> | setup.sh bmc"; exit 2 ;;
 esac

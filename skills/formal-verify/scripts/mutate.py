@@ -4,13 +4,13 @@
 """Check that a model's properties detect the bugs in its mutations file.
 
 Takes <Name>.mutations, which sits beside <Name>.tla and <Name>.matrix or
-beside <Name>.lean in a Lake project. Applies each mutation to a temporary
+beside <Name>.lean in a Lake project or <Name>.rs in a Rust crate. Applies each mutation to a temporary
 copy, so the model in the repository is never changed, and prints one line
 per mutation:
 
   DETECTED <label>: <what failed>   the mutated model fails as it should
   MISSED <label>                    the mutated model still passes
-  UNCOVERED <Property>              a TLA+ property no mutation targets
+  UNCOVERED <Property>              a TLA+ property or Rust harness no mutation targets
 
 A TLA+ mutation is checked against the property or reach operator it names,
 using the matrix runs. A Lean mutation is elaborated in the project, the mutated
@@ -21,7 +21,7 @@ no longer compiles.
 
 Mutations file (a line starting with # is a comment):
   mutation <label>          starts a mutation
-  detects <Property>        TLA+ only: the property that must fail
+  detects <Property>        TLA+ property or fully qualified Rust harness that must fail
   detects reach:<Operator>  TLA+ only: the reach check that must fail
   only <label-substring>    TLA+ only, optional: limits the matrix runs
   - <text>                  a line of the model to replace; the text of
@@ -32,12 +32,17 @@ Usage: mutate.py <Name.mutations>
   The environment settings of tlc-matrix.sh apply to TLA+ mutations.
 """
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
+
+sys.dont_write_bytecode = True
+
+import bmc
 
 HERE = Path(__file__).resolve().parent
 LEAN_PROPERTY = ("theorem", "lemma", "example", "#guard")
@@ -171,10 +176,43 @@ def check_lean(model, project, mutation, work):
                 if declaration[1] not in failed:
                     failed.append(declaration[1])
                 break
-    # A plausible bug still compiles, so only a property may fail on it.
     if not failed or not all(name.startswith(LEAN_PROPERTY) for name in failed):
         return "ERROR", output
     return "DETECTED", "fails " + "; ".join(failed)
+
+
+def check_rust(model, project, kani, bounds, mutation, work):
+    if mutation.detects not in bounds:
+        stop(f"mutation '{mutation.label}': unknown harness '{mutation.detects}'")
+    if mutation.only:
+        stop("Rust mutations do not support 'only'")
+    copy = work / "crate"
+    shutil.copytree(project, copy, ignore=shutil.ignore_patterns("target", ".git"))
+    (copy / model.relative_to(project)).write_text(mutated(model, mutation), encoding="utf-8")
+    success, _, failures, output, property_failure = bmc.verify(
+        copy, work, kani, mutation.detects, bounds[mutation.detects])
+    if success:
+        return "MISSED", ""
+    if property_failure:
+        return "DETECTED", "; ".join(failures)
+    return "ERROR", "\n".join(failures) + "\n" + output
+
+
+def rust_runner(model):
+    project = next((parent for parent in model.parents if (parent / "Cargo.toml").is_file()), None)
+    if project is None:
+        stop(f"{model} is in no Rust crate")
+    try:
+        kani = bmc.Kani()
+    except bmc.Unavailable as error:
+        print(f"UNAVAILABLE {error}")
+        sys.exit(3)
+    with tempfile.TemporaryDirectory(prefix="formal-kani-discover-") as temporary:
+        try:
+            bounds = bmc.discover(project, Path(temporary), kani)
+        except (bmc.CheckError, KeyError, TypeError, AttributeError) as error:
+            stop(str(error))
+    return bounds, partial(check_rust, model, project, kani, bounds)
 
 
 def main():
@@ -182,7 +220,7 @@ def main():
         stop("usage: mutate.py <Name.mutations>", 2)
     path = Path(sys.argv[1]).resolve()
     mutations = parse(path)
-    spec, model = path.with_suffix(".tla"), path.with_suffix(".lean")
+    spec, model, rust = path.with_suffix(".tla"), path.with_suffix(".lean"), path.with_suffix(".rs")
     if spec.is_file():
         kinds, reaches, runs = matrix_of(spec)
         for mutation in mutations:
@@ -194,8 +232,10 @@ def main():
         if project is None:
             stop(f"{model} is in no Lake project")
         kinds, check = {}, partial(check_lean, model, project)
+    elif rust.is_file():
+        kinds, check = rust_runner(rust)
     else:
-        stop(f"no {spec.name} or {model.name} beside {path}")
+        stop(f"no {spec.name}, {model.name} or {rust.name} beside {path}")
 
     detected = 0
     for mutation in mutations:
