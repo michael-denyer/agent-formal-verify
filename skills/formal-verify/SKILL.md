@@ -36,7 +36,7 @@ Write a table with one row per target before modelling. A protocol and the arith
 
 Prepare tools after picking targets and before launching agents. The helpers are in this skill's `scripts/` directory. Stay in the target repository and run each helper with `bash` and its absolute path. Pass absolute paths to models and matrices. [Tool setup](references/setup.md) describes the pins, caches and environment settings.
 
-- When a target needs Kani, run `bash <skill-dir>/scripts/setup.sh bmc`. Copy the Kani template into a verification crate only when it helps add harnesses that call the production function.
+- When a target needs Kani, run `bash <skill-dir>/scripts/setup.sh rust`. Copy the Kani template into a verification crate only when it helps add harnesses that call the production function.
 - When a target needs TLA+, run `bash <skill-dir>/scripts/setup.sh tla`.
 - When a target needs Lean, every Lean model in the repository shares one Lake project. If the repository has none, copy `lakefile.toml`, `lake-manifest.json` and `lean-toolchain` from `<skill-dir>/examples/lean-template/` to `lean/` in the target repository, once. Then run `bash <skill-dir>/scripts/setup.sh lean <absolute-model-project-path>`.
 
@@ -49,7 +49,7 @@ The helpers:
 - The setup helper, [`scripts/setup.sh`](scripts/setup.sh), verifies the pinned TLC JAR and is the only helper that installs a Lean toolchain.
 - The matrix runner, [`scripts/tlc-matrix.sh`](scripts/tlc-matrix.sh), runs TLC with a matrix of constants and prints one PASS or FAIL per run with its state count, then a SUMMARY line with the totals. A failing run prints its error trace reduced by [`scripts/tlc-trace.py`](scripts/tlc-trace.py) to the variables each step changed. Copy [`examples/tla-template/`](examples/tla-template/BoundedQueue.tla) to start a spec and its matrix.
 - The Lean checker, [`scripts/lean-check.sh`](scripts/lean-check.sh), builds every `.lean` file in the pinned Lake project and audits every declaration of every built module. It fails on a build error, a `sorry`, a declaration that rests on an axiom beyond `propext`, `Classical.choice` and `Quot.sound`, or a `.lean` file that no Lake library owns. Use `--freeze` before the file names to record statement types and definition bodies in each model's `.statements` file before proving it. Freezing permits `sorry` and reports FROZEN, not a proof PASS. Later checks enforce those records and permit proof changes and added declarations. Given file names after the project, it checks only those files. Copy [`examples/lean-template/Model/BoundedQueue.lean`](examples/lean-template/Model/BoundedQueue.lean) to start a model.
-- The Rust checker, [`scripts/bmc-check.sh`](scripts/bmc-check.sh), runs the pinned Kani on the crate's proof harnesses. It reports each harness's unwind bound and check count, rejects failed checks and unsatisfied cover conditions, and prints concrete playback tests when available. Copy [`examples/kani-template/`](examples/kani-template/src/lib.rs) for a bounded-queue example.
+- The Rust checker, [`scripts/kani-check.sh`](scripts/kani-check.sh), runs the pinned Kani on the crate's proof harnesses. It reports each harness's unwind bound and check count, rejects failed checks and unsatisfied cover conditions, and prints concrete playback tests when available. Copy [`examples/kani-template/`](examples/kani-template/src/lib.rs) for a bounded-queue example.
 - The mutation runner, [`scripts/mutate.py`](scripts/mutate.py), takes a model's `<Name>.mutations` file and applies each listed bug to a temporary copy of the model. It prints DETECTED or MISSED per mutation with what failed, UNCOVERED for a TLA+ property or Kani harness that no mutation targets, and a SUMMARY line. All three templates include a mutations file.
 
 ## 3. Model one target per agent
@@ -59,9 +59,9 @@ Spawn one agent per target, in parallel when supported. Use the host runtime's a
 - the target's row from the table, with its source files and line ranges;
 - the model's name, `<Name>`, and for a Lean target the absolute path of the Lake project, or for Kani the absolute path of the crate;
 - the absolute path of this skill's directory as `<skill-dir>`, and any `JAVA` setting;
-- the instruction to read `<skill-dir>/references/tla-brief.md` for a protocol, `<skill-dir>/references/lean-brief.md` for arithmetic, or `<skill-dir>/references/bmc-brief.md` for a Rust function, in full and to follow it.
+- the instruction to read `<skill-dir>/references/tla-brief.md` for a protocol, `<skill-dir>/references/lean-brief.md` for arithmetic, or `<skill-dir>/references/rust-brief.md` for a Rust function, in full and to follow it.
 
-Name the brief file and leave its text out of the prompt. The [TLA+ brief](references/tla-brief.md), the [Lean brief](references/lean-brief.md) and the [Rust brief](references/bmc-brief.md) hold the modelling requirements, the files to write, the commands to run and what to report. If delegation is unavailable, read the brief for each target and model the targets yourself, one at a time.
+Name the brief file and leave its text out of the prompt. The [TLA+ brief](references/tla-brief.md), the [Lean brief](references/lean-brief.md) and the [Rust brief](references/rust-brief.md) hold the modelling requirements, the files to write, the commands to run and what to report. If delegation is unavailable, read the brief for each target and model the targets yourself, one at a time.
 
 An agent writes only its own files, `tla/<Name>.tla`, `.matrix` and `.mutations`, `lean/Model/<Name>.lean`, `.mutations` and `.statements`, or the assigned Rust harness and `.mutations` files in a separate crate, so parallel agents share none. When Rust agents have reported, run the Rust checker on each crate. When the Lean agents have reported, run the Lean checker on the whole project, without a file name. An existing Lean project keeps its layout and must pin Lean 4.20.0 or later.
 

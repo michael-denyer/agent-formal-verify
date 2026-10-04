@@ -40,9 +40,10 @@ from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 
+# Importing kani must not write __pycache__ into the skill directory.
 sys.dont_write_bytecode = True
 
-import bmc
+import kani
 
 HERE = Path(__file__).resolve().parent
 LEAN_PROPERTY = ("theorem", "lemma", "example", "#guard")
@@ -181,38 +182,62 @@ def check_lean(model, project, mutation, work):
     return "DETECTED", "fails " + "; ".join(failed)
 
 
-def check_rust(model, project, kani, bounds, mutation, work):
-    if mutation.detects not in bounds:
-        stop(f"mutation '{mutation.label}': unknown harness '{mutation.detects}'")
-    if mutation.only:
-        stop("Rust mutations do not support 'only'")
+def check_rust(model, project, verifier, bounds, mutation, work):
+    """Return (verdict, detail) from Kani on the named harness in a mutated copy of the crate."""
     copy = work / "crate"
     shutil.copytree(project, copy, ignore=shutil.ignore_patterns("target", ".git"))
     (copy / model.relative_to(project)).write_text(mutated(model, mutation), encoding="utf-8")
-    success, _, failures, output, property_failure = bmc.verify(
-        copy, work, kani, mutation.detects, bounds[mutation.detects])
-    if success:
+    outcome = kani.verify(copy, work, verifier, mutation.detects, bounds[mutation.detects])
+    if outcome.verdict is kani.Verdict.PASS:
         return "MISSED", ""
-    if property_failure:
-        return "DETECTED", "; ".join(failures)
-    return "ERROR", "\n".join(failures) + "\n" + output
+    if outcome.verdict is kani.Verdict.REFUTED:
+        return "DETECTED", "; ".join(outcome.failures)
+    return "ERROR", "\n".join(outcome.failures) + "\n" + outcome.output
 
 
-def rust_runner(model):
-    project = next((parent for parent in model.parents if (parent / "Cargo.toml").is_file()), None)
+def project_root(model, *markers):
+    return next((parent for parent in model.parents if any((parent / marker).is_file() for marker in markers)), None)
+
+
+def tla_runner(spec, mutations):
+    kinds, reaches, runs = matrix_of(spec)
+    for mutation in mutations:
+        if mutation.detects not in kinds and mutation.detects not in reaches:
+            stop(f"mutation '{mutation.label}': detects '{mutation.detects}', which {spec.with_suffix('.matrix')} does not check")
+    return set(kinds), partial(check_tla, spec, kinds, reaches, runs)
+
+
+def lean_runner(model, mutations):
+    project = project_root(model, "lakefile.toml", "lakefile.lean")
+    if project is None:
+        stop(f"{model} is in no Lake project")
+    return set(), partial(check_lean, model, project)
+
+
+def rust_runner(model, mutations):
+    project = project_root(model, "Cargo.toml")
     if project is None:
         stop(f"{model} is in no Rust crate")
     try:
-        kani = bmc.Kani()
-    except bmc.Unavailable as error:
+        verifier = kani.Kani()
+    except kani.Unavailable as error:
         print(f"UNAVAILABLE {error}")
         sys.exit(3)
     with tempfile.TemporaryDirectory(prefix="formal-kani-discover-") as temporary:
         try:
-            bounds = bmc.discover(project, Path(temporary), kani)
-        except (bmc.CheckError, KeyError, TypeError, AttributeError) as error:
+            bounds = kani.discover(project, Path(temporary), verifier)
+        except kani.CheckError as error:
             stop(str(error))
-    return bounds, partial(check_rust, model, project, kani, bounds)
+    for mutation in mutations:
+        if mutation.detects not in bounds:
+            stop(f"mutation '{mutation.label}': unknown harness '{mutation.detects}'")
+        if mutation.only:
+            stop("Rust mutations do not support 'only'")
+    return set(bounds), partial(check_rust, model, project, verifier, bounds)
+
+
+# Each runner validates the mutations, then returns the names they must cover and a check for one mutation.
+RUNNERS = {".tla": tla_runner, ".lean": lean_runner, ".rs": rust_runner}
 
 
 def main():
@@ -220,22 +245,11 @@ def main():
         stop("usage: mutate.py <Name.mutations>", 2)
     path = Path(sys.argv[1]).resolve()
     mutations = parse(path)
-    spec, model, rust = path.with_suffix(".tla"), path.with_suffix(".lean"), path.with_suffix(".rs")
-    if spec.is_file():
-        kinds, reaches, runs = matrix_of(spec)
-        for mutation in mutations:
-            if mutation.detects not in kinds and mutation.detects not in reaches:
-                stop(f"mutation '{mutation.label}': detects '{mutation.detects}', which {spec.with_suffix('.matrix')} does not check")
-        check = partial(check_tla, spec, kinds, reaches, runs)
-    elif model.is_file():
-        project = next((d for d in model.parents if (d / "lakefile.toml").is_file() or (d / "lakefile.lean").is_file()), None)
-        if project is None:
-            stop(f"{model} is in no Lake project")
-        kinds, check = {}, partial(check_lean, model, project)
-    elif rust.is_file():
-        kinds, check = rust_runner(rust)
-    else:
-        stop(f"no {spec.name}, {model.name} or {rust.name} beside {path}")
+    models = [path.with_suffix(suffix) for suffix in RUNNERS]
+    model = next((model for model in models if model.is_file()), None)
+    if model is None:
+        stop(f"no {', '.join(model.name for model in models[:-1])} or {models[-1].name} beside {path}")
+    targets, check = RUNNERS[model.suffix](model, mutations)
 
     detected = 0
     for mutation in mutations:
@@ -248,7 +262,7 @@ def main():
             stop(f"mutation '{mutation.label}' did not reach a verdict:\n{detail.strip()}")
         detected += verdict == "DETECTED"
         print(f"{verdict} {mutation.label}" + (f": {detail}" if detail else ""))
-    uncovered = sorted(set(kinds) - {mutation.detects for mutation in mutations})
+    uncovered = sorted(targets - {mutation.detects for mutation in mutations})
     for name in uncovered:
         print(f"UNCOVERED {name}")
     print(f"SUMMARY {detected} of {len(mutations)} mutations detected"
