@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml/badge.svg)](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml)
 
-A skill that implements [Boris Cherny's targeted formal-verification method](https://x.com/bcherny/status/2102543349102338309) in Claude Code and Codex. The agent models selected parts of your code, checks their properties, maps counter-examples to source lines, and helps reproduce and fix reachable bugs.
+A skill for Claude Code and Codex that implements the targeted formal-verification method [recently promoted by Boris Cherny](https://x.com/bcherny/status/2102543349102338309). The agent models selected parts of your code, checks their properties, maps counter-examples to source lines, and helps reproduce and fix reachable bugs.
 
 It uses TLA+ and TLC for thread interleavings, shutdown and resource ownership, and Lean 4 for arithmetic, bounds and sequential state transitions. A protocol that depends on arithmetic can use both. For Rust functions with bounded inputs and loops, Kani checks the production code for overflow, invalid memory access, panics and broken invariants.
 
