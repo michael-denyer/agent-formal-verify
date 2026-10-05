@@ -1,5 +1,7 @@
 # Agent formal verify
 
+![Agent formal verify: model protocols with TLA+ and TLC, prove invariants with Lean 4, and check bounded Rust with Kani.](assets/formal-verify-header.png)
+
 [![CI](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml/badge.svg)](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/package-json/v/michael-denyer/agent-formal-verify?color=0969DA)](CHANGES.md)
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-6B7280)](LICENSE)
@@ -58,7 +60,7 @@ In Claude Code, use `/agent-formal-verify:formal-verify`. In Codex, type `$forma
 
 ## How it works
 
-![Source code enters target selection for thread protocols, arithmetic and state transitions. The agent builds TLA+ and Lean models, finds counter-examples, reproduces bugs, fixes code and models, and tests mutations. Fixes and models are checked in CI. Run setup once, then verify each repository.](assets/formal-verify-overview-v2.png)
+![Agent formal verify works with Claude Code, Codex and Pi. Thread protocols use TLA+ and TLC; arithmetic and state transitions use Lean 4; bounded Rust functions use Kani to check production code. The agent finds counter-examples, reproduces reachable bugs, fixes code and models, and tests mutations. Checks rerun in CI. Set up once, verify each repository, and report assumptions and bounds.](assets/formal-verify-overview-v3.png)
 
 The agent selects risky code, builds TLA+ or Lean models or adds Kani harnesses that call the Rust code, and checks their properties. Reachable counter-examples guide reproductions and fixes to both the code and model. Mutation checks test whether the properties detect mistakes, and CI reruns the models as the code changes.
 

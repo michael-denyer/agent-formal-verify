@@ -1,0 +1,20 @@
+Use case: infographic-diagram.
+Asset type: updated wide GitHub README workflow infographic, approximately 2:1 aspect ratio, high resolution.
+Input image 1 is the edit target: the existing agent-formal-verify overview.
+Primary request: update this infographic for the project's expanded scope. Preserve its dark navy/black background, electric-blue angular panel frame, cyan and amber accents, bold readable white typography, simple technical icons, and left-to-right workflow. Keep the exact title "agent-formal-verify". Reflow the internals to accommodate the added Rust/Kani route with generous spacing. All text must remain easy to read when the image is displayed at README width.
+Layout:
+- Top: large title "agent-formal-verify", with a smaller clear line "Claude Code  •  Codex  •  Pi" beneath it. Add a thin electric-blue horizontal divider below the host list and above the column headings, spanning the inside width of the main panel and matching the divider above the bottom setup bar.
+- Outside left: retain source-document icon and label "Your repository", with an arrow entering the main panel.
+- First main column, heading "Choose targets": three equal stacked cards labelled exactly "Thread protocols", "Arithmetic & state", "Bounded Rust". Give each a relevant simple icon. No radio buttons or selected-only state: these are target categories.
+- Second main column, heading "Choose tools": three equal stacked cards aligned to the target rows. First card title "TLA+ / TLC", subtitle "Model thread interleavings". Second title "Lean 4", subtitle "Prove bounds & invariants". Third title "Kani", subtitle "Check production Rust". Use small clear horizontal arrows from each target card to its corresponding tool card, then connect all three tool routes to the next column. The Kani path checks actual production Rust, so do not label all tools as models or imply Kani requires a handwritten model.
+- Third main column, heading "Check and fix": four compact icon rows labelled exactly "Find counter-examples", "Reproduce reachable bugs", "Fix code and models", "Test mutations". Retain the visual feedback-loop arrow.
+- Outside right: source-document/checkmark icon and label "Checks rerun in CI", with an outgoing arrow from the panel.
+- Bottom bar inside panel: two clean text phrases "Set up once" and "Verify each repository", with small terminal icons. Do not include slash commands because each host invokes skills differently.
+- Final small but legible line inside panel: "Report assumptions and bounds".
+Constraints: render only the specified text, verbatim; no watermarks, no invented logos, no extra slogans, no duplicated or omitted cards. Keep the overall graphic and existing design language recognizable. Change the content and spacing needed for the expanded scope; preserve the visual identity. This is a polished technical workflow diagram, with precise connectors and no overlapping text.
+
+Follow-up edit prompt:
+Use case: precise-object-edit.
+Input image 1 is the edit target, an existing README workflow infographic.
+Make exactly one change: add a thin straight electric-blue horizontal divider immediately beneath the host list "Claude Code • Codex • Pi" and above the column headings "Choose targets", "Choose tools", and "Check and fix". The divider should span the inside width of the main navy panel, aligned with the horizontal divider above the bottom setup bar. On the supplied 1774 × 887 image, place the new line at approximately y=232, from x=289 to x=1484. Match the color, crispness and approximately 2-pixel thickness of that existing blue horizontal divider. Leave a comfortable clear gap between the host text, the new line, and the headings.
+Keep everything else unchanged: every word and symbol, typography, positions, existing lines, arrows, icons, title, margins, background, colors, dimensions and framing. Do not redesign, reflow, add text, or alter any other element.
