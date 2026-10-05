@@ -1,6 +1,16 @@
 # Agent formal verify
 
 [![CI](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml/badge.svg)](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/github/package-json/v/michael-denyer/agent-formal-verify?color=0969DA)](CHANGES.md)
+[![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-6B7280)](LICENSE)
+
+[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757)](#claude-code)
+[![Codex plugin](https://img.shields.io/badge/Codex-plugin-10A37F)](#codex)
+[![Pi package](https://img.shields.io/badge/Pi-package-7C3AED)](#pi)
+
+[![TLA+ and TLC](https://img.shields.io/badge/TLA%2B-TLC-2E6DB4)](https://github.com/tlaplus/tlaplus)
+[![Lean 4](https://img.shields.io/badge/Lean%204-proofs-0F9D9A)](https://lean-lang.org)
+[![Kani](https://img.shields.io/badge/Kani-Rust-B7410E)](https://github.com/model-checking/kani)
 
 A skill for Claude Code, Codex and Pi that implements the targeted formal-verification method [recently promoted by Boris Cherny](https://x.com/bcherny/status/2102543349102338309). The agent models selected parts of your code, checks their properties, maps counter-examples to source lines, and helps reproduce and fix reachable bugs.
 
