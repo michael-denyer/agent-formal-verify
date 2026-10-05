@@ -1,5 +1,9 @@
 # Changes
 
+## 0.3.2 - install in Pi
+
+The repository is now a Pi package. `package.json` points Pi at the existing `skills/` tree, so `pi install git:github.com/michael-denyer/agent-formal-verify` provides the `setup` and `formal-verify` skills with their helpers, templates and references, without a copy. The plugin test checks that the package version, license and skills path agree with the other manifests.
+
 ## 0.3.1 - name the Rust commands after the language and the tool
 
 `setup.sh rust` prepares Kani and `scripts/kani-check.sh` runs it. They replace `setup.sh bmc` and `bmc-check.sh`, and the Rust brief moves to `references/rust-brief.md`. As with TLA+ and TLC, the setup command and brief take the language's name and the scripts take the tool's. Rust mutations reject an unknown harness or an `only` line before any mutation runs. A refuted property no longer counts as a detected mutation when Kani also reports a status that the check's category does not use.

@@ -7,9 +7,10 @@
     "url": "https://github.com/michael-denyer"
   },
   "homepage": "https://github.com/michael-denyer/agent-formal-verify",
-  "repository": "https://github.com/michael-denyer/agent-formal-verify",
+  "repository": "github:michael-denyer/agent-formal-verify",
   "license": "GPL-3.0-only",
   "keywords": [
+    "pi-package",
     "agent-formal-verify",
     "tla-plus",
     "tlc",
@@ -19,5 +20,10 @@
     "model-checking",
     "proofs",
     "skills"
-  ]
+  ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  }
 }

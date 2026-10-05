@@ -9,12 +9,20 @@
 
 In Codex, type `$` and pick the skill, run `/skills`, or request the skill by name. The plugin ships no Codex prompts or slash commands. Parallel targets use the host's agent tools and your configured models. Hosts without delegation can process targets sequentially.
 
+In Pi, use `/skill:setup` and `/skill:formal-verify`, or request a skill by name. The package ships no Pi extensions, prompts or themes.
+
 ## Shared installation
 
 To test a local checkout in Claude Code:
 
 ```shell
 claude --plugin-dir /absolute/path/to/agent-formal-verify
+```
+
+To test a local checkout in Pi:
+
+```shell
+pi -e /absolute/path/to/agent-formal-verify
 ```
 
 For a skills-only installation, use `skills/`. Its references, helpers and templates stay inside that tree. Copy both the `setup` and `formal-verify` skills so their references resolve.
@@ -44,6 +52,14 @@ codex plugin marketplace upgrade agent-formal-verify
 ```
 
 Start a new session to use the refreshed plugin. See [Codex marketplace management](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli).
+
+For Pi:
+
+```shell
+pi update --extensions
+```
+
+Pin a release by installing `git:github.com/michael-denyer/agent-formal-verify@v0.3.2`; a pinned package does not move on update.
 
 Tool caches survive plugin updates. Run setup again only if a release introduces a new system prerequisite.
 
