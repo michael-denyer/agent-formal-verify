@@ -22,7 +22,7 @@ lychee --offline --no-progress --include-fragments \
 zizmor --offline --persona pedantic --min-severity low .github/workflows/
 ```
 
-Test the plugin in Claude Code with `claude --plugin-dir /absolute/path/to/agent-formal-verify`. To test model runners, prepare their tools using [tool setup](skills/formal-verify/references/setup.md). Runner changes should demonstrate a valid model passing and a broken property failing: `bash tests/models.sh` runs both checkers and the mutation runner on the bundled examples and on copies with one guard weakened, a hidden axiom, clashing names, an unowned file or an undetected mutation, and CI runs it as the `models` job. It uses only the template's Lean pin, so after changing the audit in `lean-check.sh`, run the checker once by hand on a project pinned to Lean 4.20.0, the oldest supported version. Verification runners must report missing tools without downloading them; preparation belongs in `setup.sh`.
+Test the plugin in Claude Code with `claude --plugin-dir /absolute/path/to/agent-formal-verify` and in Pi with `pi -e /absolute/path/to/agent-formal-verify`. To test model runners, prepare their tools using [tool setup](skills/formal-verify/references/setup.md). Runner changes should demonstrate a valid model passing and a broken property failing: `bash tests/models.sh` runs both checkers and the mutation runner on the bundled examples and on copies with one guard weakened, a hidden axiom, clashing names, an unowned file or an undetected mutation, and CI runs it as the `models` job. It uses only the template's Lean pin, so after changing the audit in `lean-check.sh`, run the checker once by hand on a project pinned to Lean 4.20.0, the oldest supported version. Verification runners must report missing tools without downloading them; preparation belongs in `setup.sh`.
 
 For skill changes, check a realistic request against the instructions. Confirm that the agent chooses suitable targets, preserves the source behaviour, and reports assumptions and proof gaps. Keep prose direct and remove slogans and unsupported claims.
 
@@ -32,7 +32,7 @@ Use an unprefixed branch name. Keep each pull request focused on one problem. De
 
 ## Release
 
-Update both plugin manifests, the Claude marketplace entry and `CHANGES.md` together. `node --test tests/plugin.test.mjs` checks that the versions, descriptions and license declarations agree. Document changes to setup requirements or pinned tools so users know what an update requires.
+Update both plugin manifests, `package.json`, the Claude marketplace entry and `CHANGES.md` together. `node --test tests/plugin.test.mjs` checks that the versions, descriptions and license declarations agree. Document changes to setup requirements or pinned tools so users know what an update requires.
 
 ## Dependency updates
 

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml/badge.svg)](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml)
 
-A skill for Claude Code and Codex that implements the targeted formal-verification method [recently promoted by Boris Cherny](https://x.com/bcherny/status/2102543349102338309). The agent models selected parts of your code, checks their properties, maps counter-examples to source lines, and helps reproduce and fix reachable bugs.
+A skill for Claude Code, Codex and Pi that implements the targeted formal-verification method [recently promoted by Boris Cherny](https://x.com/bcherny/status/2102543349102338309). The agent models selected parts of your code, checks their properties, maps counter-examples to source lines, and helps reproduce and fix reachable bugs.
 
 It uses TLA+ and TLC for thread interleavings, shutdown and resource ownership, and Lean 4 for arithmetic, bounds and sequential state transitions. A protocol that depends on arithmetic can use both. For Rust functions with bounded inputs and loops, Kani checks the production code for overflow, invalid memory access, panics and broken invariants.
 
@@ -26,7 +26,15 @@ codex plugin marketplace add michael-denyer/agent-formal-verify
 codex plugin add agent-formal-verify@agent-formal-verify
 ```
 
-Run `setup` once to prepare the shared Java, Python, TLC, elan, Lean, Rust and Kani tools. In Claude Code, use `/agent-formal-verify:setup`. In Codex, request the plugin's `setup` skill. It reuses installed prerequisites and needs no target repository.
+### Pi
+
+Run in your terminal:
+
+```shell
+pi install git:github.com/michael-denyer/agent-formal-verify
+```
+
+Run `setup` once to prepare the shared Java, Python, TLC, elan, Lean, Rust and Kani tools. In Claude Code, use `/agent-formal-verify:setup`. In Codex, request the plugin's `setup` skill. In Pi, use `/skill:setup`. It reuses installed prerequisites and needs no target repository.
 
 For local checkouts and skills-only installs, see [shared installation](docs/reference.md#shared-installation).
 
@@ -36,7 +44,7 @@ For local checkouts and skills-only installs, see [shared installation](docs/ref
 Use formal-verify to check this queue's shutdown protocol and window arithmetic.
 ```
 
-In Claude Code, use `/agent-formal-verify:formal-verify`. In Codex, type `$formal-verify` or request the plugin's `formal-verify` skill.
+In Claude Code, use `/agent-formal-verify:formal-verify`. In Codex, type `$formal-verify` or request the plugin's `formal-verify` skill. In Pi, use `/skill:formal-verify`.
 
 ## How it works
 

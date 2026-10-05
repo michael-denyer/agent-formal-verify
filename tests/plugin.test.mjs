@@ -9,11 +9,11 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (file) => readFileSync(join(root, file), "utf8");
 const json = (file) => JSON.parse(read(file));
-const manifests = [".claude-plugin", ".codex-plugin"].map((runtime) => json(`${runtime}/plugin.json`));
+const manifests = [".claude-plugin/plugin.json", ".codex-plugin/plugin.json", "package.json"].map(json);
 const claude = json(".claude-plugin/marketplace.json");
 const codex = json(".agents/plugins/marketplace.json");
 
-test("the release version agrees across the manifests, the marketplace entry and the changelog", () => {
+test("the release version agrees across the manifests, the pi package, the marketplace entry and the changelog", () => {
   const { version } = manifests[0];
   assert.match(version, /^\d+\.\d+\.\d+$/);
   for (const manifest of manifests) assert.equal(manifest.version, version);
@@ -36,6 +36,13 @@ test("the manifests and marketplaces describe one plugin", () => {
   assert.equal(claude.plugins[0].source, "./");
   assert.equal(codex.plugins[0].source.path, "./");
   assert.equal(manifests[1].skills, "./skills/");
+});
+
+test("the pi package exposes the skills tree and is discoverable", () => {
+  const { pi, keywords } = manifests[2];
+  assert.deepEqual(pi.skills, ["./skills"]);
+  assert.ok(existsSync(join(root, pi.skills[0], "formal-verify", "SKILL.md")));
+  assert.ok(keywords.includes("pi-package"));
 });
 
 const skills = realpathSync(join(root, "skills"));
