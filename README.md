@@ -2,17 +2,10 @@
 
 ![Agent formal verify: model protocols with TLA+ and TLC, prove invariants with Lean 4, and check bounded Rust with Kani.](assets/formal-verify-header.png)
 
-[![CI](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml/badge.svg)](https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/github/package-json/v/michael-denyer/agent-formal-verify?color=0969DA)](CHANGES.md)
-[![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-6B7280)](LICENSE)
-
-[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757)](#claude-code)
-[![Codex plugin](https://img.shields.io/badge/Codex-plugin-10A37F)](#codex)
-[![Pi package](https://img.shields.io/badge/Pi-package-7C3AED)](#pi)
-
-[![TLA+ and TLC](https://img.shields.io/badge/TLA%2B-TLC-2E6DB4)](https://github.com/tlaplus/tlaplus)
-[![Lean 4](https://img.shields.io/badge/Lean%204-proofs-0F9D9A)](https://lean-lang.org)
-[![Kani](https://img.shields.io/badge/Kani-Rust-B7410E)](https://github.com/model-checking/kani)
+<!-- Proportional badge widths use 94%; eight equal gaps fill the remaining 6%. Keep the row contiguous to avoid extra whitespace. -->
+<p>
+<a href="https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml"><img src="https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml/badge.svg" alt="CI" width="10.17%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="CHANGES.md"><img src="https://img.shields.io/github/package-json/v/michael-denyer/agent-formal-verify?color=0969DA" alt="Version" width="10.85%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-6B7280" alt="License: GPL-3.0-only" width="14.69%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="#claude-code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D97757" alt="Claude Code plugin" width="13.78%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="#codex"><img src="https://img.shields.io/badge/Codex-plugin-10A37F" alt="Codex plugin" width="9.94%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="#pi"><img src="https://img.shields.io/badge/Pi-package-7C3AED" alt="Pi package" width="8.36%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="https://github.com/tlaplus/tlaplus"><img src="https://img.shields.io/badge/TLA%2B-TLC-2E6DB4" alt="TLA+ and TLC" width="7.91%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="https://lean-lang.org"><img src="https://img.shields.io/badge/Lean%204-proofs-0F9D9A" alt="Lean 4" width="10.39%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="https://github.com/model-checking/kani"><img src="https://img.shields.io/badge/Kani-Rust-B7410E" alt="Kani" width="7.91%"></a>
+</p>
 
 A skill for Claude Code, Codex and Pi that implements the targeted formal-verification method [recently promoted by Boris Cherny](https://x.com/bcherny/status/2102543349102338309). The agent models selected parts of your code, checks their properties, maps counter-examples to source lines, and helps reproduce and fix reachable bugs.
 
