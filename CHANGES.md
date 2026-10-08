@@ -2,7 +2,7 @@
 
 ## 0.3.3 - fix only what reproduces, and name the property in the PR
 
-The skill fixes a counter-example only when the shipped settings can reach it, and either a test reproduces it on the production code or no reproduction is practical. A counter-example with concrete inputs from Lean or Kani always has a unit test. When that test passes, the agent corrects the model or harness and leaves the code unchanged, and the Lean brief permits a re-freeze for that correction. A fix PR includes the reproducing test when one exists and names the theorem, `#guard`, TLC property or Kani harness that failed before the fix. The agent uses a tool that the request names, and the reply says what that tool leaves unchecked.
+The skill fixes only a counter-example that shipped settings can reach, and only with a reproduction unless none is practical. When a unit test for a Lean or Kani counter-example passes on the production code, the agent corrects the model or harness, and the Lean brief permits that re-freeze. A fix PR includes any reproducing test and names the theorem, `#guard`, TLC property or Kani harness that failed. The agent uses a tool the request names and reports what it leaves unchecked.
 
 ## 0.3.2 - install in Pi
 
