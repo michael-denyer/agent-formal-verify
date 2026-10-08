@@ -1,5 +1,9 @@
 # Changes
 
+## 0.3.3 - fix only what reproduces, and name the property in the PR
+
+The skill fixes a counter-example only when the shipped settings can reach it, and either a test reproduces it on the production code or no reproduction is practical. A counter-example with concrete inputs from Lean or Kani always has a unit test. When that test passes, the agent corrects the model or harness and leaves the code unchanged, and the Lean brief permits a re-freeze for that correction. A fix PR includes the reproducing test when one exists and names the theorem, `#guard`, TLC property or Kani harness that failed before the fix. The agent uses a tool that the request names, and the reply says what that tool leaves unchecked.
+
 ## 0.3.2 - install in Pi
 
 The repository is now a Pi package. `package.json` points Pi at the existing `skills/` tree, so `pi install git:github.com/michael-denyer/agent-formal-verify` provides the `setup` and `formal-verify` skills with their helpers, templates and references, without a copy. The plugin test checks that the package version, license and skills path agree with the other manifests.

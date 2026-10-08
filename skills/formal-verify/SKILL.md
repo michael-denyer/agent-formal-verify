@@ -19,6 +19,8 @@ Prefer Kani when the function is Rust and its inputs and loops can be bounded, b
 
 A thread protocol that depends on arithmetic such as `slot = item mod window` needs both tools. Use TLA+ for the interleavings with the arithmetic as a constant, and Lean for the arithmetic.
 
+When the user names a tool, model the target with it. If the table gives another tool for part of the target, such as TLA+ for a retry loop that threads share, say in the reply what the named tool leaves unchecked and which tool would check it.
+
 ## 1. Pick the targets
 
 Search with `rg` for `pthread_cond`, `pthread_mutex`, `atomic_`, `std::condition_variable`, `sync.Cond`, `chan`, `select`, `asyncio.Condition`, `Semaphore`, `atexit` and `setjmp`. Also search for protocol state names such as `ready`, `stop`, `done`, `finished`, `pending`, `inflight`, `head`, `tail` and `exiting`. Classify each hit:
@@ -73,10 +75,10 @@ For each violation, in this order:
 
 1. Read the reduced trace that the matrix runner prints under the FAIL line, the inputs that Lean's bounded search prints, or Kani's failed check and playback inputs. Map each step to a code event and source line.
 2. Check reachability against the real constants and callers. If a violation occurs at `Slots=1` while the code ships `Slots=4`, decide whether the trace needs the smaller count or can also occur at the shipped one. Report the first as safe only while the count stays at the shipped value, and the second as a reachable bug. Keep the boundary configuration in the matrix either way.
-3. Reproduce a reachable trace with a deterministic test, a ThreadSanitizer or race-detector run, or a stress loop using the trace's counts. Hooks, a small slot count or barriers can force the interleaving. If no practical reproduction exists, report that limitation and the model configuration that demonstrates the violation.
+3. Reproduce a reachable trace with a deterministic test, a ThreadSanitizer or race-detector run, or a stress loop using the trace's counts. Hooks, a small slot count or barriers can force the interleaving. If no practical reproduction exists, report that limitation and the model configuration that demonstrates the violation. A counter-example with concrete inputs, from Lean's bounded search or Kani's playback, always has a unit test. If that test passes on the production code, the model or harness differs from the code. Correct it and rerun.
 4. Change code only when the user asked for fixes. Otherwise report the trace, the reproduction and the proposed fix, and stop here. The model then describes the code as written, so its failing check is the record of the bug. Do not reword the property to pass, prove its negation or add runs that expect failure. Mutations for a failing property wait for the fix.
-5. Apply the smallest fix that prevents the trace, update the model to match, and rerun its matrix, the Lean checker or the Rust checker, then its mutations. Keep the model and code change together.
-6. When the user asked for commits or pull requests, use one PR per bug. Include the model, its mutations file and the fix. Write the description as the Reply section says.
+5. Fix a violation only when it is reachable at shipped settings, and step 3 either reproduced it or found no practical reproduction. Report the others and leave their code unchanged. Apply the smallest fix that prevents the trace, update the model to match, and rerun its matrix, the Lean checker or the Rust checker, then its mutations. Rerun the reproducing test when one exists. It must now pass. Keep the model and code change together.
+6. When the user asked for commits or pull requests, use one PR per bug. Include the model, its mutations file, the fix and the reproducing test when one exists. In the description, name the theorem, `#guard`, TLC property or Kani harness that failed before the fix and passes after it. If no test reproduces the bug, state that. Write the rest as the Reply section says.
 
 ## 5. Keep the proof, and record each result once
 
