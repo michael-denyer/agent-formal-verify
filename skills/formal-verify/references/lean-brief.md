@@ -37,7 +37,7 @@ bash <skill-dir>/scripts/lean-check.sh <absolute-project-path> Model/<Name>.lean
 python3 <skill-dir>/scripts/mutate.py <absolute-project-path>/Model/<Name>.mutations
 ```
 
-The checker enforces the `.statements` file beside each checked source. Changing a theorem type, a definition type or body, or deleting a frozen declaration fails with its name. Adding lemmas and definitions and changing proofs is allowed. Re-freeze only after the production code changes, or after reviewing a toolchain bump, and explain why in the report. Records are specific to the pinned Lean toolchain. Fingerprints use structural expressions, including the module identity of private references. If two private declarations share a name in one model, give them distinct names before freezing. A project-wide check also rejects records whose source files were deleted. Named-file checks remain limited to those files. A model without a record retains the usual proof and axiom checks, so keep the records under version control. Deleting a record removes that protection.
+The checker enforces the `.statements` file beside each checked source. Changing a theorem type, a definition type or body, or deleting a frozen declaration fails with its name. Adding lemmas and definitions and changing proofs is allowed. Re-freeze only after the production code changes, after a production test contradicts the transcription, or after reviewing a toolchain bump, and explain why in the report. Records are specific to the pinned Lean toolchain. Fingerprints use structural expressions, including the module identity of private references. If two private declarations share a name in one model, give them distinct names before freezing. A project-wide check also rejects records whose source files were deleted. Named-file checks remain limited to those files. A model without a record retains the usual proof and axiom checks, so keep the records under version control. Deleting a record removes that protection.
 
 The file name limits the Lean checker to your model, so another agent's unfinished file does not fail your check.
 
@@ -51,7 +51,7 @@ Report only after reading the output of both commands. If either exits 3 with `U
 
 - the file paths, both commands, the checker's PASS or FAIL line and the mutation runner's output;
 - the states required by the reach guard and the search bound;
-- for each counter-example, concrete inputs to the code's function, the source line of the failing arithmetic, a unit test with those inputs, whether shipped callers can pass those inputs, and the proposed fix;
+- for each counter-example, concrete inputs to the code's function, the source line of the failing arithmetic, a unit test with those inputs and whether it fails on the production code, whether shipped callers can pass those inputs, and the proposed fix;
 - the `.statements` path and any reason for re-freezing;
 - for a closed proof, its assumptions, including integer widths, bounds and each theorem hypothesis;
 - the number of differential vectors on which the model and production code agree, their integer widths, or an explicit statement that the comparison was not run.
