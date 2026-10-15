@@ -78,6 +78,19 @@ test("documentation does not present bundled images or fonts as code", () => {
   }
 });
 
+test("bundled images carry no provenance or text chunks", () => {
+  const images = [".claude-plugin", "assets"].flatMap((dir) => walk(join(root, dir))).filter((path) => path.endsWith(".png"));
+  assert.ok(images.length > 0);
+  for (const file of images) {
+    const data = readFileSync(file);
+    assert.equal(data.toString("latin1", 0, 8), "\x89PNG\r\n\x1a\n", `${relative(root, file)}: not a PNG`);
+    for (let pos = 8; pos < data.length; pos += 12 + data.readUInt32BE(pos)) {
+      const type = data.toString("latin1", pos + 4, pos + 8);
+      assert.ok(!["caBX", "iTXt", "tEXt", "zTXt", "eXIf"].includes(type), `${relative(root, file)}: strip the ${type} chunk; the directory screens its text as code or credentials`);
+    }
+  }
+});
+
 test("skills declare their names and link only to files inside the skills tree", () => {
   for (const file of walk(skills).filter((path) => path.endsWith(".md"))) {
     const text = readFileSync(file, "utf8");
