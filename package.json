@@ -9,8 +9,12 @@
   "homepage": "https://github.com/michael-denyer/agent-formal-verify",
   "repository": "github:michael-denyer/agent-formal-verify",
   "license": "GPL-3.0-only",
+  "exports": {
+    "./server": "./opencode.mjs"
+  },
   "keywords": [
     "pi-package",
+    "opencode-plugin",
     "agent-formal-verify",
     "tla-plus",
     "tlc",

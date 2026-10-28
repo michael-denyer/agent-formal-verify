@@ -45,6 +45,28 @@ test("the pi package exposes the skills tree and is discoverable", () => {
   assert.ok(keywords.includes("pi-package"));
 });
 
+test("the OpenCode plugin registers every bundled skill without replacing an existing one", async () => {
+  const { exports, dependencies } = manifests[2];
+  assert.deepEqual(exports, { "./server": "./opencode.mjs" });
+  assert.equal(dependencies, undefined);
+  const plugin = (await import(new URL("../opencode.mjs", import.meta.url))).default;
+  assert.equal(plugin.id, "agent-formal-verify");
+  const registered = new Map([["setup", { id: "setup", path: "/elsewhere/setup/SKILL.md" }]]);
+  await plugin.setup({
+    skill: {
+      transform: async (edit) => edit({ get: (id) => registered.get(id), add: (skill) => registered.set(skill.id, skill) }),
+    },
+  });
+  assert.equal(registered.get("setup").path, "/elsewhere/setup/SKILL.md");
+  const skill = registered.get("formal-verify");
+  const text = read("skills/formal-verify/SKILL.md");
+  assert.equal(realpathSync(skill.path), join(skills, "formal-verify", "SKILL.md"));
+  assert.equal(skill.name, "formal-verify");
+  assert.ok(text.includes(`description: ${JSON.stringify(skill.description)}\n`));
+  assert.ok(text.endsWith(`\n---\n${skill.content}`));
+  assert.equal(skill.autoinvoke, true);
+});
+
 test("the plugin has no automatic hooks or servers that could forward credentials", () => {
   for (const manifest of manifests.slice(0, 2)) {
     for (const field of ["hooks", "mcpServers", "lspServers"]) {
