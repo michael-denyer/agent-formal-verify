@@ -43,7 +43,8 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if npm view "agent-formal-verify@$VERSION" version > /dev/null 2>&1; then
+          published=$(npm view "agent-formal-verify@$VERSION" version 2>/dev/null || true)
+          if [ "$published" = "$VERSION" ]; then
             echo "::notice::agent-formal-verify@$VERSION is already on npm"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
