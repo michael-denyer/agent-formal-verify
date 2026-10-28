@@ -71,11 +71,10 @@ pi update --extensions
 
 Pin a release by installing `git:github.com/michael-denyer/agent-formal-verify@v0.3.2`; a pinned package does not move on update.
 
-For OpenCode, remove the plugin and add it again to install the latest commit:
+For OpenCode, `opencode plugin check` reports a newer commit on the default branch. To install it:
 
 ```shell
-opencode plugin remove 'git+https://github.com/michael-denyer/agent-formal-verify.git'
-opencode plugin add 'git+https://github.com/michael-denyer/agent-formal-verify.git'
+opencode plugin update 'git+https://github.com/michael-denyer/agent-formal-verify.git'
 ```
 
 Tool caches survive plugin updates. Run setup again only if a release introduces a new system prerequisite.
