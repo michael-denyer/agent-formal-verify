@@ -2,7 +2,7 @@
 
 ## 0.4.0 - install in OpenCode
 
-The repository is now an OpenCode 2 plugin. `opencode plugin add 'git+https://github.com/michael-denyer/agent-formal-verify.git'` loads `opencode.mjs` through the package's `./server` export. It reads `skills/*/SKILL.md` and registers `setup` and `formal-verify` with their helpers, templates and references in place, and keeps any skill already registered under the same name. It has no dependencies, runs no commands and makes no network requests. The Pi package and the Claude Code and Codex plugins are unchanged.
+The repository is now an OpenCode plugin for OpenCode 2.2 and later. `opencode plugin add 'git+https://github.com/michael-denyer/agent-formal-verify.git'` loads `opencode.mjs` through the package's `./server` export. It reads `skills/*/SKILL.md` and registers `setup` and `formal-verify` with their helpers, templates and references in place, and keeps any skill already registered under the same name. It has no dependencies, runs no commands and makes no network requests. The Pi package and the Claude Code and Codex plugins are unchanged.
 
 ## 0.3.5 - fetch TLC in CI without a token, and name no MCP package
 

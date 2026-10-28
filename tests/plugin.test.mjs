@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Michael Denyer
 // SPDX-License-Identifier: GPL-3.0-only
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (file) => readFileSync(join(root, file), "utf8");
@@ -45,26 +46,61 @@ test("the pi package exposes the skills tree and is discoverable", () => {
   assert.ok(keywords.includes("pi-package"));
 });
 
-test("the OpenCode plugin registers every bundled skill without replacing an existing one", async () => {
-  const { exports, dependencies } = manifests[2];
-  assert.deepEqual(exports, { "./server": "./opencode.mjs" });
-  assert.equal(dependencies, undefined);
-  const plugin = (await import(new URL("../opencode.mjs", import.meta.url))).default;
+async function register(entry, existing = []) {
+  const plugin = (await import(entry)).default;
   assert.equal(plugin.id, "agent-formal-verify");
-  const registered = new Map([["setup", { id: "setup", path: "/elsewhere/setup/SKILL.md" }]]);
+  const registered = new Map(existing.map((skill) => [skill.id, skill]));
   await plugin.setup({
     skill: {
       transform: async (edit) => edit({ get: (id) => registered.get(id), add: (skill) => registered.set(skill.id, skill) }),
     },
   });
-  assert.equal(registered.get("setup").path, "/elsewhere/setup/SKILL.md");
-  const skill = registered.get("formal-verify");
-  const text = read("skills/formal-verify/SKILL.md");
-  assert.equal(realpathSync(skill.path), join(skills, "formal-verify", "SKILL.md"));
-  assert.equal(skill.name, "formal-verify");
-  assert.ok(text.includes(`description: ${JSON.stringify(skill.description)}\n`));
-  assert.ok(text.endsWith(`\n---\n${skill.content}`));
-  assert.equal(skill.autoinvoke, true);
+  return registered;
+}
+const opencode = new URL("../opencode.mjs", import.meta.url);
+const bundled = () => readdirSync(skills).sort();
+
+test("the OpenCode plugin registers every bundled skill from its SKILL.md", async () => {
+  const { exports, dependencies } = manifests[2];
+  assert.deepEqual(exports, { "./server": "./opencode.mjs" });
+  assert.equal(dependencies, undefined);
+  const registered = await register(opencode);
+  assert.deepEqual([...registered.keys()].sort(), bundled());
+  for (const id of bundled()) {
+    const skill = registered.get(id);
+    const text = read(`skills/${id}/SKILL.md`);
+    assert.equal(realpathSync(skill.path), join(skills, id, "SKILL.md"));
+    assert.equal(skill.name, id);
+    assert.ok(text.includes(`description: ${JSON.stringify(skill.description)}\n`), id);
+    assert.ok(text.endsWith(`\n---\n${skill.content}`), id);
+    assert.equal(skill.autoinvoke, true);
+  }
+});
+
+test("the OpenCode plugin keeps a skill already registered under the same name", async () => {
+  const existing = { id: "setup", path: "/elsewhere/setup/SKILL.md" };
+  const registered = await register(opencode, [existing]);
+  assert.equal(registered.get("setup"), existing);
+  assert.ok(registered.has("formal-verify"));
+});
+
+test("the OpenCode plugin reads skills checked out with CRLF line endings", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "opencode-crlf-"));
+  try {
+    copyFileSync(fileURLToPath(opencode), join(dir, "opencode.mjs"));
+    for (const id of bundled()) {
+      mkdirSync(join(dir, "skills", id), { recursive: true });
+      writeFileSync(join(dir, "skills", id, "SKILL.md"), read(`skills/${id}/SKILL.md`).replaceAll("\n", "\r\n"));
+    }
+    const lf = await register(opencode);
+    const crlf = await register(pathToFileURL(join(dir, "opencode.mjs")));
+    for (const id of bundled()) {
+      const { name, description, content } = crlf.get(id);
+      assert.deepEqual({ name, description, content }, { name: lf.get(id).name, description: lf.get(id).description, content: lf.get(id).content });
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("the plugin has no automatic hooks or servers that could forward credentials", () => {

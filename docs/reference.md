@@ -11,7 +11,7 @@ In Codex, type `$` and pick the skill, run `/skills`, or request the skill by na
 
 In Pi, use `/skill:setup` and `/skill:formal-verify`, or request a skill by name. The package ships no Pi extensions, prompts or themes.
 
-In OpenCode, request `setup` or `formal-verify` by name; the agent loads it through the `skill` tool. The plugin's `opencode.mjs` registers the two skills from `skills/` and leaves any existing skill with the same name in place. It adds no tools, commands, agents or MCP servers. It uses the OpenCode 2 plugin interface; with OpenCode 1, use a skills-only installation.
+In OpenCode, request `setup` or `formal-verify` by name; the agent loads it through the `skill` tool. The plugin's `opencode.mjs` registers the two skills from `skills/` and leaves any existing skill with the same name in place. It adds no tools, commands, agents or MCP servers. It needs OpenCode 2.2 or later; with an older version, use a skills-only installation.
 
 ## Shared installation
 

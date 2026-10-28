@@ -2,7 +2,7 @@
 
 ![Agent formal verify: model protocols with TLA+ and TLC, prove invariants with Lean 4, and check bounded Rust with Kani.](assets/formal-verify-header.png)
 
-<!-- Proportional badge widths use 94%; eight equal gaps fill the remaining 6%. Keep the row contiguous to avoid extra whitespace. -->
+<!-- Proportional badge widths use 93.25%; nine equal gaps fill the remaining 6.75%. Keep the row contiguous to avoid extra whitespace. -->
 <p>
 <a href="https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml"><img src="https://github.com/michael-denyer/agent-formal-verify/actions/workflows/ci.yml/badge.svg" alt="CI" width="8.91%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="CHANGES.md"><img src="https://img.shields.io/github/package-json/v/michael-denyer/agent-formal-verify?color=0969DA" alt="Version" width="9.5%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-6B7280" alt="License: GPL-3.0-only" width="12.87%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="#claude-code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D97757" alt="Claude Code plugin" width="12.07%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="#codex"><img src="https://img.shields.io/badge/Codex-plugin-10A37F" alt="Codex plugin" width="8.71%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="#pi"><img src="https://img.shields.io/badge/Pi-package-7C3AED" alt="Pi package" width="7.33%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="#opencode"><img src="https://img.shields.io/badge/OpenCode-plugin-211E1E" alt="OpenCode plugin" width="10.89%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="https://github.com/tlaplus/tlaplus"><img src="https://img.shields.io/badge/TLA%2B-TLC-2E6DB4" alt="TLA+ and TLC" width="6.93%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="https://lean-lang.org"><img src="https://img.shields.io/badge/Lean%204-proofs-0F9D9A" alt="Lean 4" width="9.11%"><img src="assets/badge-gap.svg" alt="" width="0.75%"></a><a href="https://github.com/model-checking/kani"><img src="https://img.shields.io/badge/Kani-Rust-B7410E" alt="Kani" width="6.93%"></a>
 </p>
@@ -41,7 +41,7 @@ pi install git:github.com/michael-denyer/agent-formal-verify
 
 ### OpenCode
 
-OpenCode 2 or later. Run in your terminal:
+OpenCode 2.2 or later. Run in your terminal:
 
 ```shell
 opencode plugin add 'git+https://github.com/michael-denyer/agent-formal-verify.git'
