@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const skills = new URL("./skills/", import.meta.url);
 
-export function parse(text) {
+function parse(text) {
   const match = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!match) throw new Error("SKILL.md has no frontmatter");
   const field = (key) => {
