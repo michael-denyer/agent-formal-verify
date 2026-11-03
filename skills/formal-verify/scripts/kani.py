@@ -45,7 +45,10 @@ class Outcome:
 
 
 def search_path(inherited, *directories):
-    return os.pathsep.join([*(str(directory) for directory in directories), *([inherited] if inherited is not None else [])])
+    entries = [str(directory) for directory in directories]
+    if inherited is not None:
+        entries.append(inherited)
+    return os.pathsep.join(entries)
 
 
 class Kani:

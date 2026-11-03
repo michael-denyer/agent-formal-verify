@@ -17,7 +17,7 @@ const calls = (dir) => readFileSync(join(dir, "calls"), "utf8");
 const runKani = (dir, script, args = [], extra = {}) => run(dir, script, args, { KANI_HOME: join(dir, "kani"), ...extra });
 
 // Behaves as the pinned kani-driver, configured by driver.json and report.json in the fixture directory.
-const DRIVER = readFileSync(new URL("./fixtures/kani-driver.py", import.meta.url), "utf8");
+const DRIVER = readFileSync(join(logs, "kani-driver.py"), "utf8");
 
 function kaniBundle(config = {}) {
   const dir = fixture();

@@ -9,9 +9,10 @@ base = pathlib.Path(trace).parent
 config = json.loads((base / "driver.json").read_text())
 with open(trace, "a") as log:
     log.write(" ".join(args) + "\n")
+kani_home = os.environ.get("KANI_HOME")
 bundle_home = pathlib.Path(__file__).resolve().parents[2]
-if config.get("expectResolvedHome") and os.environ.get("KANI_HOME") != str(bundle_home):
-    sys.exit(f"KANI_HOME is {os.environ.get('KANI_HOME')!r}, expected the resolved {bundle_home}")
+if config.get("expectResolvedHome") and kani_home != str(bundle_home):
+    sys.exit(f"KANI_HOME is {kani_home!r}, expected the resolved {bundle_home}")
 library_path = os.environ.get("DYLD_FALLBACK_LIBRARY_PATH") if sys.platform == "darwin" else os.environ.get("LD_LIBRARY_PATH")
 if "expectLibraryPath" in config and library_path != config["expectLibraryPath"]:
     sys.exit(f"loader path is {library_path!r}, expected {config['expectLibraryPath']!r}")
@@ -21,7 +22,7 @@ if args == ["--version"]:
 target = pathlib.Path(args[args.index("--target-dir") + 1])
 if "list" in args:
     if config.get("deleteDriverAfterList"):
-        (pathlib.Path(os.environ.get("KANI_HOME")) / f"kani-{config['version']}/bin/kani-driver").unlink()
+        (pathlib.Path(kani_home) / f"kani-{config['version']}/bin/kani-driver").unlink()
     target.mkdir(parents=True, exist_ok=True)
     harnesses = config["harnesses"]
     pathlib.Path("kani-list.json").write_text(json.dumps(
