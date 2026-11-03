@@ -44,9 +44,8 @@ class Outcome:
     output: str
 
 
-def search_path(variable, *directories):
-    inherited = [os.environ[variable]] if variable in os.environ else []
-    return os.pathsep.join([*(str(directory) for directory in directories), *inherited])
+def search_path(inherited, *directories):
+    return os.pathsep.join([*(str(directory) for directory in directories), *([inherited] if inherited is not None else [])])
 
 
 class Kani:
@@ -67,8 +66,8 @@ class Kani:
         self.env = os.environ | {
             "KANI_HOME": str(home),
             "RUSTUP_TOOLCHAIN": str((bundle / "toolchain").resolve()),
-            "PATH": search_path("PATH", bundle / "bin", bundle / "pyroot/bin", bundle / "toolchain/bin"),
-            "PYTHONPATH": search_path("PYTHONPATH", bundle / "pyroot"),
+            "PATH": search_path(os.environ.get("PATH"), bundle / "bin", bundle / "pyroot/bin", bundle / "toolchain/bin"),
+            "PYTHONPATH": search_path(os.environ.get("PYTHONPATH"), bundle / "pyroot"),
         }
         # A parent cargo (cargo run, cargo test, a build script) exports its rustup toolchain's
         # lib directory here; the bundled compiler must load only the bundled toolchain.
