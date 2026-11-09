@@ -2,7 +2,7 @@
 
 ## 0.4.4 - bring existing models back in line with the code
 
-A TLA+ spec or Lean model keeps passing after the code it describes changes, because it never reads the code. When a repository already has models, the formal-verify skill now reruns each one, reads the commits that touched its source files since the model last changed, and judges each change as no effect, a changed shape, a promise changed on purpose, or a promise that may be broken. Models whose code changed are updated by an agent that edits the existing files instead of starting from a template, then rechecked with a new mutation for each branch or step they now cover. Models whose code is gone are deleted. The reply gives each existing model one outcome: in sync, updated, bug, retired or not checked. A request to recheck only the existing models skips the search for new targets.
+A TLA+ spec or Lean model keeps passing after the code it describes changes, because it never reads the code. When a repository already has models, the formal-verify skill now reruns each one, reads the commits that touched its source files since the model last changed, and judges each change as no effect, a changed shape, a promise changed on purpose, or a promise that may be broken. An agent updates each model whose code changed by editing its existing files instead of starting from a template, and the skill rechecks it with a new mutation for each branch or step it now covers. The skill deletes models whose code is gone. The reply gives each existing model one outcome: in sync, updated, bug, retired or not checked. A request to recheck only the existing models skips the search for new targets.
 
 ## 0.4.3 - clear the directory's credential and download-and-run holds
 
