@@ -4,13 +4,13 @@ Follow this brief to prove one sequential or arithmetic property with Lean 4. Yo
 
 ## Files
 
-Write `Model/<Name>.lean`, `Model/<Name>.mutations` and `Model/<Name>.statements` in the Lake project. For a new model, start from the `BoundedQueue` files in `<skill-dir>/examples/lean-template/Model/`. Write no other file, so parallel agents share none. Put every declaration in `namespace <Name>`: the checker audits the project's modules together, and equal names clash. The header comment names the source files and line ranges the model follows, the commit they were read at as `Source read at <commit>`, and each assumption it makes.
+Write `Model/<Name>.lean`, `Model/<Name>.mutations` and `Model/<Name>.statements` in the Lake project. Start a new model from the `BoundedQueue` files in `<skill-dir>/examples/lean-template/Model/`, and edit an existing model's files in place. Write no other file, so parallel agents share none. Put every declaration in `namespace <Name>`: the checker audits the project's modules together, and equal names clash. The header comment names the source files and line ranges the model follows, the functions it covers, the commit they were read at as `Source read at <commit>`, and each assumption it makes.
 
 Every `.lean` file in the project must belong to a library in the lakefile. With the template's lakefile, that is every file under `Model/`. Add Mathlib only when the arithmetic needs it, since its dependencies can increase setup and build time.
 
 ## Existing model
 
-When your task names an existing model, edit its files and keep its name. The task gives its files, its sync commit, the commits since that touched its source, and for each commit whether the model still describes the code and whether any evidence says the guarantee changed. Change the transcription where it no longer describes the code. Change a theorem statement only where the task cites evidence that its guarantee changed. After changing a definition or a statement, re-freeze the model, giving the production change as the reason, and rerun the differential vectors. Add a mutation for each branch or step the update adds. Set `Source read at` to the commit you read the source at.
+The row in your task gives the commits since the model was last synced and says whether any of them changed the guarantee on purpose. Change the transcription where it no longer describes the code. Change a theorem statement only where the row cites that evidence. Re-freeze after either change, as the Check section allows, and rerun the differential vectors. Add a mutation for each branch or step the update adds. Update the header to the code you read.
 
 ## Model
 
