@@ -9,8 +9,9 @@
    every size. BoundedQueue.mutations lists the bugs its properties must detect.
 
    To adapt it, replace the header with the source files and line ranges the
-   model follows, give each thread a program counter, and keep the top-level
-   formula named Spec, which tlc-matrix.sh checks. *)
+   model follows and the commit they were read at as `Source read at <commit>`,
+   give each thread a program counter, and keep the top-level formula named
+   Spec, which tlc-matrix.sh checks. *)
 EXTENDS Naturals
 
 CONSTANTS Window, Items
