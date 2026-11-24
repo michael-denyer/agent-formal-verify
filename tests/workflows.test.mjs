@@ -9,7 +9,7 @@ import { command, fixture, removeFixtures, root } from "./helpers.mjs";
 
 afterEach(removeFixtures);
 
-const mirror = "https://ftpmirror.gnu.org/bash/bash-3.2.57.tar.gz";
+const mirror = "https://192.0.2.1/bash/bash-3.2.57.tar.gz";
 const origin = "https://ftp.gnu.org/gnu/bash/bash-3.2.57.tar.gz";
 
 // The Bash 3.2 job's lines that download its tarball and check its checksum.
