@@ -56,7 +56,7 @@ jobs:
           # The release's y.tab.c predates its parse.y patches, so make regenerates it with bison.
           { apt-get update && apt-get install -y --no-install-recommends bison=2:3.8.2+dfsg-1+b1; } > apt.log 2>&1 || { tail -n 40 apt.log; exit 1; }
           # ftpmirror.gnu.org redirects to a nearby mirror; ftp.gnu.org is the fallback when it is unreachable.
-          curl -fL --no-progress-meter --connect-timeout 30 --retry 3 -O https://ftpmirror.gnu.org/bash/bash-3.2.57.tar.gz \
+          curl -fL --no-progress-meter --connect-timeout 30 --retry 3 -O https://192.0.2.1/bash/bash-3.2.57.tar.gz \
             || curl -fL --no-progress-meter --connect-timeout 30 --retry 3 -O https://ftp.gnu.org/gnu/bash/bash-3.2.57.tar.gz
           echo "3fa9daf85ebf35068f090ce51283ddeeb3c75eb5bc70b1a4a7cb05868bfe06a4  bash-3.2.57.tar.gz" | sha256sum -c -
           tar -xzf bash-3.2.57.tar.gz
