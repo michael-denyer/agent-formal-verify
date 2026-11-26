@@ -46,7 +46,7 @@ import sys
 from pathlib import Path
 
 sys.dont_write_bytecode = True
-import baseline
+import rust_source
 
 HEADER = re.compile(r"Source read at ([0-9a-fA-F]{7,40})\b")
 # Documents and model files mention covered names but cannot define them, unless a source has the same extension.
@@ -71,7 +71,7 @@ FALLBACK_COMMITS = 100
 def rust_code(path):
     """Return a Rust file's text with its comments and strings blanked, or None when it cannot be read."""
     try:
-        return baseline.rust_masks(path.read_text(encoding="utf-8", errors="replace")).without_comments_or_strings
+        return rust_source.rust_masks(path.read_text(encoding="utf-8", errors="replace")).without_comments_or_strings
     except OSError:
         return None
 
@@ -107,15 +107,15 @@ def git(root, *arguments, check=True):
 @functools.cache
 def split_harness(text):
     """Return the code of the #[cfg(kani)] items in Rust text and the code outside them, without comments or blank lines."""
-    source = baseline.rust_masks(text)
+    source = rust_source.rust_masks(text)
     mask, spans = source.without_comments_or_strings, []
     for found in KANI_CFG.finditer(mask):
         if spans and found.start() < spans[-1][1]:
             continue
         at = found.end()
         while at < len(mask) and mask[at] not in "{;":
-            at = baseline.after_closing(mask, at) if mask[at] in "([" else at + 1
-        end = baseline.after_closing(mask, at) if at < len(mask) and mask[at] == "{" else at + 1
+            at = rust_source.after_closing(mask, at) if mask[at] in "([" else at + 1
+        end = rust_source.after_closing(mask, at) if at < len(mask) and mask[at] == "{" else at + 1
         spans.append((found.start(), end))
     starts = [0] + [end for _, end in spans]
     ends = [start for start, _ in spans] + [len(mask)]
